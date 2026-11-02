@@ -21,6 +21,8 @@ export const newSecret = () => toB64(crypto.getRandomValues(new Uint8Array(32)))
 export const validSecret = (s) => /^[A-Za-z0-9_-]{43}$/.test(s)
 
 export async function derive(secret) {
+  // เบราว์เซอร์เปิดระบบเข้ารหัสเฉพาะหน้า https:// หรือ localhost (เปิดผ่าน http://192.168… จะไม่มี crypto.subtle)
+  if (!globalThis.crypto?.subtle) throw new SyncError('insecure', 'หน้านี้เปิดผ่าน http:// เบราว์เซอร์จึงไม่ให้เข้ารหัสข้อมูล ให้เปิดผ่าน https://brightside.sudomont.com แทน')
   return {
     id: hex(await sha('bs:id:' + secret)),
     token: hex(await sha('bs:auth:' + secret)),

@@ -15,6 +15,12 @@ export default function SyncPanel({ toast }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   if (!SYNC_URL) return null
+  if (!globalThis.crypto?.subtle) return (
+    <section className="card col">
+      <h2 className="row"><RefreshCw aria-hidden="true" /> เชื่อมคอมกับมือถือ</h2>
+      <p className="err" role="alert">ใช้ซิงก์ไม่ได้ในหน้านี้ เพราะเปิดผ่าน http:// ซึ่งเบราว์เซอร์ไม่ให้เข้ารหัสข้อมูล เปิดผ่าน <b>https://brightside.sudomont.com</b> แล้วจะใช้ได้</p>
+    </section>
+  )
 
   const act = async (fn) => { setBusy(true); setErr(''); try { await fn() } catch (e) { setErr(msg(e)) } finally { setBusy(false) } }
   const secret = st.linked ? getSecret() : ''
