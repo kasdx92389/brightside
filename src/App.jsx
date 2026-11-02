@@ -32,9 +32,9 @@ function RestTimer({ end, label, onAdd, onStop }) {
   const m = Math.floor(left / 60), s = String(left % 60).padStart(2, '0')
   return (
     <div className={`timer ${left ? '' : 'end'}`} role="timer" aria-live="off">
-      <span className="grow"><span className="mute xs" style={{ display: 'block', color: 'inherit', opacity: 0.8 }}>{label}</span><span className="num" aria-label={left ? `เหลืออีก ${left} วินาที` : 'หมดเวลา'}>{left ? `${m}:${s}` : 'หมดเวลา!'}</span></span>
+      <span className="tlabel"><small>{label}</small><span className="num" aria-label={left ? `เหลืออีก ${left} วินาที` : 'หมดเวลา'}>{left ? `${m}:${s}` : 'หมดเวลา!'}</span></span>
       {left > 0 && <button className="btn sm" onClick={() => onAdd(15)}><Plus /> 15 วิ</button>}
-      <button className="icon-btn" onClick={onStop} aria-label="ปิดตัวจับเวลา" style={{ color: 'inherit' }}><X /></button>
+      <button className="icon-btn" onClick={onStop} aria-label="ปิดตัวจับเวลา"><X /></button>
     </div>
   )
 }

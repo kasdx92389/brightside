@@ -35,8 +35,10 @@ export default function ExerciseSheet({ ex, onClose, toast }) {
         <span className={`badge l${ex.lv}`}>{lv}</span>
         <span className="badge">{EQUIP[ex.eq]}</span>
         <span className="badge">แนะนำ {ex.rx}</span>
+      </div>
+      <div className="row">
         <span className="mute sm grow">{ex.en}</span>
-        <button className="btn sm" aria-pressed={favs.includes(ex.id)} onClick={() => toggleFav(ex.id)}><Heart fill={favs.includes(ex.id) ? 'currentColor' : 'none'} /> {favs.includes(ex.id) ? 'โปรดแล้ว' : 'โปรด'}</button>
+        <button className="btn sm grow-0" aria-pressed={favs.includes(ex.id)} onClick={() => toggleFav(ex.id)}><Heart fill={favs.includes(ex.id) ? 'currentColor' : 'none'} /> {favs.includes(ex.id) ? 'โปรดแล้ว' : 'โปรด'}</button>
       </div>
 
       <div className="callout">
@@ -68,7 +70,7 @@ export default function ExerciseSheet({ ex, onClose, toast }) {
       <a className="btn block" href={ex.video} target="_blank" rel="noreferrer"><ExternalLink /> ดูวิดีโอสอน</a>
 
       {plan && (
-        <div className="row">
+        <div className="row pair">
           <select className="input grow" aria-label="เลือกวัน" value={day} onChange={(e) => setDay(+e.target.value)}>
             {DAY_TH.map((d, i) => <option key={d} value={i}>{d} · {plan.days[i].name}</option>)}
           </select>

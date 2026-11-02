@@ -166,6 +166,15 @@ h3 { font-size: 1.05rem; }
   transition: border-color 0.18s;
 }
 .input:focus { border-color: var(--pri); outline: none; box-shadow: 0 0 0 3px var(--pri-soft); }
+/* select: ใช้หน้าตาเดียวกันทุกเครื่อง (iOS native สูงไม่เท่าปุ่ม) */
+select.input {
+  appearance: none; -webkit-appearance: none; padding-right: 2.5rem; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.875rem center;
+}
+/* คู่ select + ปุ่ม: สูงเท่ากัน */
+.pair { align-items: stretch; }
+.pair > .input, .pair > .btn { min-height: 52px; }
 .input.big { font-family: var(--num); font-size: 1.5rem; }
 .input[aria-invalid='true'] { border-color: var(--bad); }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
@@ -270,10 +279,14 @@ dialog.sheet::backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: bl
 
 .timer {
   position: fixed; z-index: 40; left: 50%; translate: -50% 0; bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom));
-  display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.5rem 0.5rem 1.125rem; border-radius: 999px;
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.5rem 0.5rem 1.25rem; border-radius: 999px;
+  width: max-content; max-width: calc(100vw - 24px);
   background: var(--s3); border: 1px solid var(--pri); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25); animation: up 0.25s;
 }
-.timer .num { font-size: 1.75rem; min-width: 3.5ch; }
+.timer .tlabel { display: flex; flex-direction: column; gap: 2px; margin-right: 0.5rem; min-width: 0; }
+.timer .tlabel small { font-size: 0.8125rem; line-height: 1.2; opacity: 0.8; white-space: nowrap; }
+.timer .num { font-size: 1.75rem; line-height: 1.1; min-width: 3.5ch; }
+.timer .icon-btn { color: inherit; }
 .timer { background: #fff1e4; }
 .timer.end { background: var(--ok); border-color: var(--ok); color: #03180d; }
 @media (min-width: 900px) { .timer { bottom: 24px; left: calc(50% + 112px); } }
