@@ -1,5 +1,5 @@
 // แคชแบบ stale-while-revalidate: เปิดครั้งแรกออนไลน์ แล้วใช้ออฟไลน์ได้ (รวมรูปท่า)
-const CACHE = 'brightside-v1'
+const CACHE = 'brightside-v2'
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './icon.svg', './manifest.webmanifest']))); self.skipWaiting() })
 self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())))
 self.addEventListener('fetch', (e) => {

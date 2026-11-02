@@ -5,7 +5,7 @@ import { saveProfile, setPlan } from '../store.js'
 import { generatePlan, PPL } from '../data/plan.js'
 
 /** หน้าแรก: ชื่อ น้ำหนัก ส่วนสูง → BMI → เป้าหมาย → ออกแบบโปรแกรม */
-export default function Onboarding() {
+export default function Onboarding({ sharedCode }) {
   const [step, setStep] = useState(0)
   const [f, setF] = useState(emptyForm)
   const [touched, setTouched] = useState({})
@@ -17,7 +17,7 @@ export default function Onboarding() {
     const p = toProfile(f)
     saveProfile(p)
     setPlan(preset ? PPL : generatePlan(p))
-    location.hash = '#/today'
+    location.hash = sharedCode ? `#/import/${sharedCode}` : '#/today' // มีลิงก์แผนจากเพื่อน → ไปดูตัวอย่างต่อ
   }
 
   return (
@@ -28,6 +28,8 @@ export default function Onboarding() {
           <i className="on" /><i className={step ? 'on' : ''} />
         </div>
       </div>
+
+      {sharedCode && <p className="callout" role="status">เพื่อนส่งแผนซ้อมมาให้ ตั้งค่าโปรไฟล์ก่อน แล้วระบบจะแสดงแผนให้เลือกใช้ทันที</p>}
 
       {step === 0 ? (
         <>

@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Sparkles, ClipboardList, Pencil, Trash2, Plus, Minus, ChevronDown, Check } from 'lucide-react'
+import { Sparkles, ClipboardList, Pencil, Trash2, Plus, Minus, ChevronDown, Check, Share2, Download } from 'lucide-react'
 import { Media, Sheet, Seg, Choice } from '../components/ui.jsx'
 import { GOALS, LEVELS, EQUIPS } from '../components/ProfileForms.jsx'
 import Library from './Library.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
+import { ShareSheet } from '../components/SharePlan.jsx'
+import { planId } from '../lib/share.js'
 import { byId } from '../data/exercises.js'
 import { PPL, generatePlan, minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dayIdx } from '../lib/calc.js'
@@ -41,6 +43,7 @@ export default function Plan({ toast }) {
   const [edit, setEdit] = useState(false)
   const [pick, setPick] = useState(null) // วันที่กำลังเพิ่มท่า
   const [info, setInfo] = useState(null)
+  const [share, setShare] = useState(false)
   const today = dayIdx()
 
   const patchItem = (di, k, patch) => editDay(di, (d) => ({ ...d, items: d.items.map((it, n) => (n === k ? { ...it, ...patch } : it)) }))
@@ -55,13 +58,18 @@ export default function Plan({ toast }) {
   return (
     <div className="page">
       <header className="page-head">
-        <div><span className="eyebrow">โปรแกรมปัจจุบัน</span><h1>{plan.name}</h1></div>
+        <div><span className="eyebrow">โปรแกรมปัจจุบัน</span><h1>{plan.name}</h1><span className="mute xs">รหัสแผน {planId(plan)}</span></div>
         <button className={`btn sm ${edit ? 'pri' : ''}`} onClick={() => setEdit(!edit)} aria-pressed={edit}><Pencil /> {edit ? 'เสร็จ' : 'แก้ไข'}</button>
       </header>
 
       <div className="two">
         <button className="btn pri" onClick={() => setGen(true)}><Sparkles /> ออกแบบให้</button>
         <button className="btn" onClick={() => { setPlan(PPL); toast('กลับไปใช้ตาราง PPL 5 วัน') }}><ClipboardList /> PPL 5 วัน</button>
+      </div>
+
+      <div className="two">
+        <button className="btn" onClick={() => setShare(true)}><Share2 /> แชร์แผน</button>
+        <button className="btn" onClick={() => { location.hash = '#/import' }}><Download /> รับแผนจากเพื่อน</button>
       </div>
 
       <div className="col">
@@ -103,6 +111,7 @@ export default function Plan({ toast }) {
       </div>
 
       <ExerciseSheet ex={info} onClose={() => setInfo(null)} toast={toast} />
+      <ShareSheet plan={plan} open={share} onClose={() => setShare(false)} toast={toast} />
       <Generator key={String(gen)} open={gen} onClose={() => setGen(false)} toast={toast} />
       <Sheet open={pick !== null} onClose={() => setPick(null)} title={`เพิ่มท่าใน${pick !== null ? DAY_TH[pick] : ''}`}>
         {pick !== null && <Library onPick={addEx} />}
