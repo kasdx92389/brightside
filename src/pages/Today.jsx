@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Droplets, Beef, Zap, Minus, Plus, Moon, SkipForward, HeartPulse } from 'lucide-react'
+import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Droplets, Beef, Zap, Minus, Plus, Moon, SkipForward, HeartPulse, ArrowLeftRight } from 'lucide-react'
 import { Ring, Media } from '../components/ui.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
+import SwapSheet from '../components/SwapSheet.jsx'
 import { byId } from '../data/exercises.js'
-import { minutesOf, itemLabel } from '../data/plan.js'
+import { minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dateKey, dayIdx, targets } from '../lib/calc.js'
 import { isTimed, timedSeconds, overloadHint, deloadDue, inDeload } from '../lib/coach.js'
 import {
-  useStore, patchSet, finishDay, skipDay, toggleWarm, patchFood, startDeload, endDeload,
+  useStore, editDay, patchSet, finishDay, skipDay, toggleWarm, patchFood, startDeload, endDeload,
   setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak, waterGoal,
 } from '../store.js'
 
@@ -21,7 +22,7 @@ function weekOf(d) {
   return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return x })
 }
 
-function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, startTimer, rest }) {
+function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, onSwap, startTimer, rest }) {
   const sets = setsOf(log, it)
   const done = sets.filter((s) => s.done).length
   const timed = isTimed(it.reps)
@@ -68,6 +69,7 @@ function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, startTimer, re
           <div className="row wrap" style={{ gap: '0.5rem' }}>
             {secs && <button className="btn sm" onClick={() => startTimer(secs, `จับเวลา ${ex.th}`)}><Timer /> จับเวลา {secs >= 60 ? `${secs / 60} นาที` : `${secs} วิ`}</button>}
             <button className="btn ghost sm grow" onClick={onInfo}><Info /> วิธีเล่นและสิ่งที่ได้</button>
+            {done === 0 && <button className="btn ghost sm grow" onClick={onSwap}><ArrowLeftRight /> เครื่องไม่ว่าง? เปลี่ยนท่า</button>}
           </div>
         </div>
       )}
@@ -125,6 +127,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
   const { total, done, pct } = progressOf(s, date)
   const [open, setOpen] = useState(null)
   const [info, setInfo] = useState(null)
+  const [swap, setSwap] = useState(null) // ท่าที่กำลังหาท่าแทน
   const isToday = date === dateKey()
   const finished = !!log?.finished
   const skipped = !!log?.skipped
@@ -132,6 +135,16 @@ export default function Today({ date: dateParam, startTimer, toast }) {
   const sr = streak(s)
   const mins = (a, b) => Math.max(1, Math.round((b - a) / 60000))
   const train = items.length > 0 && day.kind !== 'rest'
+  // สลับท่าในแผนของวันนี้ (อ่านเซ็ต/ครั้งจากแผนจริง ไม่ใช่ค่าที่ลดตอนสัปดาห์เบา)
+  const doSwap = (e) => {
+    const cur = day.items.find((i) => i.id === swap.id)
+    const [sets, reps] = parseRx(e.rx)
+    const keep = !isTimed(reps) && !isTimed(cur.reps)
+    editDay(di, (d) => ({ ...d, items: d.items.map((i) => (i.id === swap.id ? { id: e.id, sets: keep ? cur.sets : sets, reps } : i)) }))
+    toast(`เปลี่ยนเป็น ${e.th} แล้ว`)
+    setSwap(null)
+    setOpen(null)
+  }
 
   return (
     <div className="page">
@@ -205,7 +218,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           {items.map((it, n) => (
             <ExRow
               key={`${it.id}-${n}`} it={it} ex={byId[it.id]} log={log} logs={logs} date={date}
-              open={open === n} onToggle={() => setOpen(open === n ? null : n)} onInfo={() => setInfo(byId[it.id])}
+              open={open === n} onToggle={() => setOpen(open === n ? null : n)} onInfo={() => setInfo(byId[it.id])} onSwap={() => setSwap(byId[it.id])}
               startTimer={startTimer} rest={profile.rest}
             />
           ))}
@@ -238,6 +251,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
 
       <Nutrition date={date} log={log} profile={profile} />
       <ExerciseSheet ex={info} onClose={() => setInfo(null)} toast={toast} />
+      <SwapSheet ex={swap} level={profile.level} taken={day.items.map((i) => i.id)} onClose={() => setSwap(null)} onPick={doSwap} />
     </div>
   )
 }

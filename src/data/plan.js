@@ -50,12 +50,18 @@ const POOL = {
   cardio: ['treadmill-intervals', 'rope-jumping', 'brisk-walk'],
 }
 
+// มือใหม่ในฟิตเนส: เครื่องที่มีรางนำก่อนฟรีเวท (คุมท่าง่ายกว่า) — ที่เหลือใช้ลำดับ POOL เดิม
+const BEGINNER_GYM = {
+  chestPress: ['machine-chest-press', 'db-bench-press', 'pushup', 'incline-pushup'],
+  squat: ['leg-press', 'goblet-squat', 'bodyweight-squat'],
+}
+
 const DAY = {
   push: ['Push', 'อก ไหล่ หลังแขน', ['chestPress', 'chestIncline', 'shoulderPress', 'lateral', 'triceps', 'triceps'], 'proPush'],
   pull: ['Pull', 'หลัง หน้าแขน', ['vertPull', 'horizPull', 'rearDelt', 'biceps', 'biceps'], 'proPull'],
-  legs: ['Legs', 'ขา ก้น หน้าท้อง', ['squat', 'hinge', 'lunge', 'legIso', 'calves', 'core2'], 'proLegs'],
+  legs: ['Legs', 'ขา ก้น หน้าท้อง', ['squat', 'hinge', 'lunge', 'legIso', 'core2', 'calves'], 'proLegs'],
   upper: ['Upper', 'ร่างกายส่วนบน', ['chestPress', 'horizPull', 'shoulderPress', 'vertPull', 'biceps', 'triceps'], 'proPush'],
-  lower: ['Lower', 'ร่างกายส่วนล่าง', ['squat', 'hinge', 'glute', 'legIso', 'calves', 'core1'], 'proLegs'],
+  lower: ['Lower', 'ร่างกายส่วนล่าง', ['squat', 'hinge', 'glute', 'legIso', 'core1', 'calves'], 'proLegs'],
   fullA: ['Full Body A', 'ทั้งตัว', ['squat', 'chestPress', 'horizPull', 'shoulderPress', 'core1'], 'proFull'],
   fullB: ['Full Body B', 'ทั้งตัว', ['hinge', 'chestIncline', 'vertPull', 'lateral', 'core2'], 'proFull'],
 }
@@ -76,10 +82,13 @@ export function parseRx(rx) {
 export function generatePlan({ goal, level, days, equip }) {
   const ok = (e) => ALLOWED[equip].includes(e.eq) && e.lv <= level
   const use = {} // จำนวนครั้งที่ใช้ท่าในสัปดาห์นี้ → สลับท่าเมื่อวันซ้ำ
+  const beginnerGym = level === 1 && equip === 'gym'
   const pick = (pool, taken) => {
-    const c = POOL[pool].map((id) => byId[id]).filter((e) => e && ok(e) && !taken.includes(e.id))
+    const ids = (beginnerGym && BEGINNER_GYM[pool]) || POOL[pool]
+    const c = ids.map((id) => byId[id]).filter((e) => e && ok(e) && !taken.includes(e.id))
     if (!c.length) return null
-    const e = c.reduce((a, b) => ((use[b.id] || 0) < (use[a.id] || 0) ? b : a))
+    // มือใหม่: ท่าเดิมทุกสัปดาห์เพื่อให้ชินและเพิ่มน้ำหนักได้ต่อเนื่อง · ระดับกลางขึ้นไป: สลับท่าเมื่อวันซ้ำ
+    const e = level === 1 ? c[0] : c.reduce((a, b) => ((use[b.id] || 0) < (use[a.id] || 0) ? b : a))
     use[e.id] = (use[e.id] || 0) + 1
     return e
   }
@@ -97,7 +106,8 @@ export function generatePlan({ goal, level, days, equip }) {
     if (s < 0) return i === 6 || goal === 'muscle' ? REST : WALK
     const [name, focus, slots, pro] = DAY[seq[s]]
     const taken = []
-    const items = (level === 3 ? [...slots, pro] : slots).flatMap((p) => {
+    const cap = level === 1 ? (goal === 'muscle' ? 6 : 5) : slots.length // มือใหม่ ≤5 ท่า/วัน (≈45 นาทีรวมคาร์ดิโอ)
+    const items = (level === 3 ? [...slots, pro] : slots.slice(0, cap)).flatMap((p) => {
       const e = pick(p, taken)
       if (!e) return []
       taken.push(e.id)
