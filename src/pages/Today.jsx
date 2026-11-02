@@ -1,0 +1,243 @@
+import { useState } from 'react'
+import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Droplets, Beef, Zap, Minus, Plus, Moon, SkipForward, HeartPulse } from 'lucide-react'
+import { Ring, Media } from '../components/ui.jsx'
+import ExerciseSheet from '../components/ExerciseSheet.jsx'
+import { byId } from '../data/exercises.js'
+import { minutesOf, itemLabel } from '../data/plan.js'
+import { DAY_TH, DAY_SHORT, dateKey, dayIdx, targets } from '../lib/calc.js'
+import { isTimed, timedSeconds, overloadHint, deloadDue, inDeload } from '../lib/coach.js'
+import {
+  useStore, patchSet, finishDay, skipDay, toggleWarm, patchFood, startDeload, endDeload,
+  setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak, waterGoal,
+} from '../store.js'
+
+const firstInt = (s) => String(s).match(/\d+/)?.[0] || ''
+const longDate = (d) => d.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+const STATUS_TH = { done: 'ทำแล้ว', rest: 'วันพัก', skip: 'ข้ามวัน', miss: 'พลาด', pre: 'ก่อนเริ่มใช้', todo: 'ยังไม่ทำ' }
+
+function weekOf(d) {
+  const mon = new Date(d)
+  mon.setDate(d.getDate() - dayIdx(d))
+  return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return x })
+}
+
+function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, startTimer, rest }) {
+  const sets = setsOf(log, it)
+  const done = sets.filter((s) => s.done).length
+  const timed = isTimed(it.reps)
+  const secs = timed ? timedSeconds(it.reps) : null
+  const up = timed ? null : overloadHint(logs, it.id, it.reps, date)
+  const hint = up ? String(up.kg) : lastKg(logs, it.id, date)
+
+  const tick = (i) => {
+    const s = sets[i]
+    const on = !s.done
+    patchSet(date, it.id, i, on ? { done: true, kg: s.kg || hint || '', reps: s.reps || (timed ? '' : firstInt(it.reps)) } : { done: false }, it.sets)
+    if (on && i < it.sets - 1 && !timed) startTimer(rest, 'พักก่อนเซ็ตถัดไป')
+  }
+
+  return (
+    <li className={`ex ${done === it.sets ? 'complete' : ''}`}>
+      <button className="ex-head" aria-expanded={open} onClick={onToggle}>
+        <Media ex={ex} />
+        <span className="grow">
+          <b>{ex.th}</b>
+          <span className="mute sm" style={{ display: 'block' }}>{itemLabel(it)}</span>
+          <span className="dots" aria-label={`ทำแล้ว ${done} จาก ${it.sets} เซ็ต`}>{sets.map((s, i) => <i key={i} className={s.done ? 'on' : ''} />)}</span>
+        </span>
+        <ChevronDown className="chev" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="sets">
+          {up && <p className="nudge"><TrendingUp aria-hidden="true" /><span>ครั้งก่อนทำครบที่ {up.was} กก. — ครั้งนี้ลองเพิ่มเป็น <b>{up.kg} กก.</b></span></p>}
+          {!timed && <div className="set-labels"><span>เซ็ต</span><span>น้ำหนัก (กก.)</span><span>ครั้ง</span><span /></div>}
+          {sets.map((s, i) => (
+            <div className="set" key={i}>
+              <span>{i + 1}</span>
+              {timed ? (
+                <div className="grow mute" style={{ gridColumn: '2 / 4' }}>เป้าหมาย {it.reps}</div>
+              ) : (
+                <>
+                  <input className="input" type="number" inputMode="decimal" min="0" step="0.5" placeholder={hint || '–'} aria-label={`เซ็ต ${i + 1} น้ำหนัก กิโลกรัม`} value={s.kg ?? ''} onChange={(e) => patchSet(date, it.id, i, { kg: e.target.value }, it.sets)} />
+                  <input className="input" type="number" inputMode="numeric" min="0" placeholder={firstInt(it.reps) || '–'} aria-label={`เซ็ต ${i + 1} จำนวนครั้ง`} value={s.reps ?? ''} onChange={(e) => patchSet(date, it.id, i, { reps: e.target.value }, it.sets)} />
+                </>
+              )}
+              <button className="tick" aria-pressed={!!s.done} aria-label={`เซ็ต ${i + 1} ${s.done ? 'ทำแล้ว' : 'ยังไม่ทำ'}`} onClick={() => tick(i)}><Check /></button>
+            </div>
+          ))}
+          <div className="row wrap" style={{ gap: '0.5rem' }}>
+            {secs && <button className="btn sm" onClick={() => startTimer(secs, `จับเวลา ${ex.th}`)}><Timer /> จับเวลา {secs >= 60 ? `${secs / 60} นาที` : `${secs} วิ`}</button>}
+            <button className="btn ghost sm grow" onClick={onInfo}><Info /> วิธีเล่นและสิ่งที่ได้</button>
+          </div>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function Meter({ icon: Icon, label, value, goal, unit, quick = [], onChange, step }) {
+  const pct = Math.min(value / goal, 1)
+  return (
+    <div className="meter">
+      <div className="row between">
+        <span className="row" style={{ gap: '0.5rem' }}><Icon aria-hidden="true" /><b>{label}</b></span>
+        <span className="mute sm"><b className="num" style={{ fontSize: '1.25rem', color: pct >= 1 ? 'var(--ok-fg)' : 'var(--text)' }}>{value.toLocaleString()}</b> / {goal.toLocaleString()} {unit}</span>
+      </div>
+      <div className="bar" role="progressbar" aria-label={label} aria-valuemin="0" aria-valuemax={goal} aria-valuenow={value}><i style={{ width: `${pct * 100}%` }} className={pct >= 1 ? 'full' : ''} /></div>
+      <div className="row wrap" style={{ gap: '0.5rem' }}>
+        <button className="btn sm" aria-label={`ลด ${label}`} onClick={() => onChange(Math.max(0, value - step))}><Minus /></button>
+        {quick.map((q) => <button key={q} className="btn sm" onClick={() => onChange(value + q)}><Plus /> {q}</button>)}
+      </div>
+    </div>
+  )
+}
+
+function Nutrition({ date, log, profile }) {
+  const t = targets(profile)
+  const f = log?.food || {}
+  const wg = waterGoal(profile)
+  const proteinGoal = Math.round((t.protein[0] + t.protein[1]) / 2)
+  return (
+    <details className="card nutri">
+      <summary className="row between" style={{ cursor: 'pointer', minHeight: 44 }}>
+        <h2>อาหารและน้ำวันนี้</h2>
+        <span className="mute sm">{f.water || 0}/{wg} แก้ว · {f.protein || 0} g · {(f.kcal || 0).toLocaleString()} kcal</span>
+      </summary>
+      <div className="col" style={{ gap: '1.25rem', marginTop: '1rem' }}>
+        <Meter icon={Droplets} label="น้ำดื่ม" value={f.water || 0} goal={wg} unit="แก้ว (250 มล.)" quick={[1, 2]} step={1} onChange={(v) => patchFood(date, { water: v })} />
+        <Meter icon={Beef} label="โปรตีน" value={f.protein || 0} goal={proteinGoal} unit="g" quick={[10, 25]} step={10} onChange={(v) => patchFood(date, { protein: v })} />
+        <Meter icon={Zap} label="พลังงาน" value={f.kcal || 0} goal={t.kcal} unit="kcal" quick={[100, 300, 500]} step={100} onChange={(v) => patchFood(date, { kcal: v })} />
+        <p className="hint">เป้าโปรตีน {t.protein[0]}–{t.protein[1]} g · ตัวอย่างอาหารแต่ละมื้ออยู่ที่หน้า “ฉัน”</p>
+      </div>
+    </details>
+  )
+}
+
+export default function Today({ date: dateParam, startTimer, toast }) {
+  const s = useStore()
+  const { profile, plan, logs } = s
+  const date = dateParam || dateKey()
+  const d = new Date(date + 'T00:00:00')
+  const di = dayIdx(d)
+  const day = plan.days[di]
+  const log = logs[date]
+  const items = itemsFor(s, date)
+  const { total, done, pct } = progressOf(s, date)
+  const [open, setOpen] = useState(null)
+  const [info, setInfo] = useState(null)
+  const isToday = date === dateKey()
+  const finished = !!log?.finished
+  const skipped = !!log?.skipped
+  const light = inDeload(s, date)
+  const sr = streak(s)
+  const mins = (a, b) => Math.max(1, Math.round((b - a) / 60000))
+  const train = items.length > 0 && day.kind !== 'rest'
+
+  return (
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <span className="eyebrow">{isToday ? 'วันนี้' : DAY_TH[di]} · {longDate(d)}</span>
+          <h1>สวัสดี {profile.name}</h1>
+        </div>
+        <span className="badge l3" title="จำนวนวันต่อเนื่อง" style={{ minHeight: 32, padding: '0 12px', fontSize: '0.9375rem' }}><Flame size={16} /> <span className="num">{sr}</span> วัน</span>
+      </header>
+
+      <nav className="week" aria-label="สัปดาห์นี้">
+        {weekOf(d).map((x, i) => {
+          const k = dateKey(x)
+          const st = dayStatus(s, k)
+          return (
+            <a key={k} href={`#/today/${k}`} className={st} aria-current={k === date ? 'date' : undefined} aria-label={`${DAY_TH[i]} ${STATUS_TH[st]}`}>
+              {DAY_SHORT[i]}
+              <i>{st === 'done' && <Check />}</i>
+            </a>
+          )
+        })}
+      </nav>
+
+      {isToday && deloadDue(s, date) && (
+        <section className="card col banner">
+          <h2 className="row"><HeartPulse aria-hidden="true" /> ถึงเวลาสัปดาห์เบา</h2>
+          <p className="mute sm">ฝึกต่อเนื่องครบ 6 สัปดาห์แล้ว ลดเหลือ 2 เซ็ตต่อท่าเป็นเวลา 7 วัน ให้ร่างกายฟื้นตัว แล้วกลับมาแรงขึ้น</p>
+          <button className="btn pri sm" style={{ alignSelf: 'flex-start' }} onClick={() => { startDeload(); toast('เริ่มสัปดาห์เบา 7 วัน') }}>เริ่มสัปดาห์เบา</button>
+        </section>
+      )}
+      {light && (
+        <section className="card row between banner">
+          <span className="sm"><b>สัปดาห์เบา</b> · ทุกท่าไม่เกิน 2 เซ็ต ถึง {longDate(new Date(s.deloadUntil + 'T00:00:00'))}</span>
+          <button className="btn ghost sm" onClick={endDeload}>ยกเลิก</button>
+        </section>
+      )}
+
+      {!train ? (
+        <section className="card glow col" style={{ alignItems: 'center', textAlign: 'center', padding: '2rem 1rem' }}>
+          <BedDouble size={44} style={{ color: 'var(--info-fg)' }} aria-hidden="true" />
+          <h2>วันพัก</h2>
+          <p className="mute">กล้ามเนื้อโตตอนพัก นอน 7–8 ชั่วโมง ดื่มน้ำให้พอ และเดินเบาๆ 8,000–10,000 ก้าว</p>
+        </section>
+      ) : (
+        <section className="card glow hero">
+          <div className="col" style={{ gap: '0.375rem' }}>
+            <span className="eyebrow">{day.name}</span>
+            <h2>{day.focus}</h2>
+            <p className="mute sm row" style={{ gap: '0.375rem' }}><Clock size={16} aria-hidden="true" /> ราว {minutesOf({ items })} นาที · {items.length} ท่า</p>
+            {finished && <span className="badge l1" style={{ alignSelf: 'flex-start' }}><Check size={14} /> เสร็จแล้ว</span>}
+            {skipped && <span className="badge" style={{ alignSelf: 'flex-start' }}><SkipForward size={14} /> ข้ามวันนี้</span>}
+            {!finished && log?.startedAt && isToday && <span className="mute xs">เริ่มฝึกมาแล้ว {mins(log.startedAt, Date.now())} นาที</span>}
+          </div>
+          <Ring pct={pct} done={pct === 1}>
+            <span className="num">{done}<span className="mute" style={{ fontSize: '1.125rem' }}>/{total}</span></span>
+            <span className="mute xs">เซ็ต</span>
+          </Ring>
+        </section>
+      )}
+
+      {train && day.kind === 'train' && !skipped && (
+        <label className="warm">
+          <input type="checkbox" checked={!!log?.warm} onChange={() => toggleWarm(date)} />
+          <span><b>วอร์มอัพ 5 นาที</b><span className="mute sm" style={{ display: 'block' }}>เดินเร็ว 5 นาที + เซ็ตเบาของท่าแรก 1 เซ็ต · ยกขึ้น 2 วินาที ลง 2–3 วินาที หยุดก่อนหมดแรง 1–2 ครั้ง</span></span>
+        </label>
+      )}
+
+      {train && !skipped && (
+        <ul className="list" aria-label="รายการท่า">
+          {items.map((it, n) => (
+            <ExRow
+              key={`${it.id}-${n}`} it={it} ex={byId[it.id]} log={log} logs={logs} date={date}
+              open={open === n} onToggle={() => setOpen(open === n ? null : n)} onInfo={() => setInfo(byId[it.id])}
+              startTimer={startTimer} rest={profile.rest}
+            />
+          ))}
+        </ul>
+      )}
+
+      {train && skipped && (
+        <section className="card col">
+          <p className="mute">ข้ามวันนี้แล้ว — ร่างกายต้องการพักเพิ่มก็ไม่เป็นไร ระบบไม่นับว่าพลาดและไม่ตัดสถิติต่อเนื่อง</p>
+          <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => skipDay(date, false)}><Undo2 /> กลับมาฝึกวันนี้</button>
+        </section>
+      )}
+
+      {train && !skipped && (finished ? (
+        <section className="card col" style={{ borderColor: 'rgba(34,197,94,.5)' }}>
+          <h2 className="row"><PartyPopper style={{ color: 'var(--ok-fg)' }} aria-hidden="true" /> เยี่ยมมาก!</h2>
+          <p className="mute">สรุปวันนี้: <b className="num tone-good" style={{ fontSize: '1.25rem' }}>{setsDone(log)}</b> เซ็ต
+            {volumeOf(log) > 0 && <> · ปริมาณรวม <b className="num tone-good" style={{ fontSize: '1.25rem' }}>{volumeOf(log).toLocaleString()}</b> กก.</>}
+            {log.startedAt && log.finishedAt && <> · ใช้เวลา <b className="num tone-good" style={{ fontSize: '1.25rem' }}>{mins(log.startedAt, log.finishedAt)}</b> นาที</>}</p>
+          <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => finishDay(date, false)}><Undo2 /> ยกเลิกการจบ</button>
+        </section>
+      ) : (
+        <div className="col" style={{ gap: '0.5rem' }}>
+          <button className={`btn block ${pct === 1 ? 'ok' : 'pri'}`} disabled={done === 0} onClick={() => { finishDay(date); toast('บันทึกการฝึกแล้ว') }}>
+            <Check /> {pct === 1 ? 'จบการฝึกวันนี้' : done ? `จบการฝึก (ทำแล้ว ${done}/${total} เซ็ต)` : 'ทำอย่างน้อย 1 เซ็ตก่อนจบ'}
+          </button>
+          {done === 0 && <button className="btn ghost block" onClick={() => { skipDay(date); toast('ข้ามวันนี้ พักเพิ่มได้เลย') }}><Moon /> เหนื่อยหรือไม่ว่าง — ข้ามวันนี้</button>}
+        </div>
+      ))}
+
+      <Nutrition date={date} log={log} profile={profile} />
+      <ExerciseSheet ex={info} onClose={() => setInfo(null)} toast={toast} />
+    </div>
+  )
+}

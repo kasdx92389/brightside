@@ -1,0 +1,176 @@
+import { useSyncExternalStore } from 'react'
+import { dateKey, dayIdx, targets } from './lib/calc.js'
+import { achievements, addDays, inDeload } from './lib/coach.js'
+import { byId } from './data/exercises.js'
+
+const KEY = 'brightside:v1'
+const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], deloadUntil: null, createdAt: dateKey() }
+
+const load = () => {
+  try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY)) } } catch { return EMPTY }
+}
+let state = load()
+const subs = new Set()
+export let saveFailed = false
+
+export const getState = () => state
+export function update(fn) {
+  state = fn(state)
+  try { localStorage.setItem(KEY, JSON.stringify(state)); saveFailed = false } catch { saveFailed = true /* โหมดส่วนตัว/พื้นที่เต็ม — ใช้ต่อใน memory */ }
+  subs.forEach((f) => f())
+}
+export const useStore = (sel = (s) => s) =>
+  sel(useSyncExternalStore((f) => (subs.add(f), () => subs.delete(f)), () => state))
+
+const byDate = (a, b) => a.date.localeCompare(b.date)
+
+// ───── actions ─────
+export const saveProfile = (profile) =>
+  update((s) => {
+    const today = dateKey()
+    const weights = s.weights.filter((w) => w.date !== today).concat({ date: today, kg: profile.weight })
+    return { ...s, profile: { rest: 90, ...s.profile, ...profile }, weights: weights.sort(byDate) }
+  })
+
+export const setPlan = (plan) => update((s) => ({ ...s, plan: { ...plan, startedAt: dateKey() }, deloadUntil: null }))
+
+export const editDay = (i, fn) =>
+  update((s) => ({ ...s, plan: { ...s.plan, source: 'custom', days: s.plan.days.map((d, k) => (k === i ? fn(d) : d)) } }))
+
+export const addWeight = (kg, date = dateKey()) =>
+  update((s) => ({
+    ...s,
+    weights: s.weights.filter((w) => w.date !== date).concat({ date, kg }).sort(byDate),
+    profile: date === dateKey() ? { ...s.profile, weight: kg } : s.profile,
+  }))
+
+export const addMeasure = (m, date = dateKey()) =>
+  update((s) => ({ ...s, measures: s.measures.filter((x) => x.date !== date).concat({ ...m, date }).sort(byDate) }))
+
+export const toggleFav = (id) =>
+  update((s) => ({ ...s, favs: s.favs.includes(id) ? s.favs.filter((x) => x !== id) : [...s.favs, id] }))
+
+const dayLog = (s, date) => s.logs[date] || { sets: {}, finished: false }
+const patchLog = (date, fn) => update((s) => ({ ...s, logs: { ...s.logs, [date]: fn(dayLog(s, date)) } }))
+
+export const patchSet = (date, exId, idx, patch, total) =>
+  patchLog(date, (log) => {
+    const arr = Array.from({ length: total }, (_, i) => log.sets[exId]?.[i] || {})
+    arr[idx] = { ...arr[idx], ...patch }
+    return { ...log, startedAt: log.startedAt || Date.now(), skipped: false, sets: { ...log.sets, [exId]: arr } }
+  })
+
+export const finishDay = (date, finished = true) =>
+  patchLog(date, (log) => ({ ...log, finished, skipped: false, finishedAt: finished ? Date.now() : undefined }))
+export const skipDay = (date, skipped = true) => patchLog(date, (log) => ({ ...log, skipped, finished: false }))
+export const toggleWarm = (date) => patchLog(date, (log) => ({ ...log, warm: !log.warm }))
+export const patchFood = (date, patch) =>
+  patchLog(date, (log) => {
+    const f = { ...log.food, ...patch }
+    for (const k in f) f[k] = Math.max(0, Number(f[k]) || 0)
+    return { ...log, food: f }
+  })
+
+export const startDeload = () =>
+  update((s) => {
+    const until = addDays(dateKey(), 6)
+    return { ...s, deloadUntil: until, plan: { ...s.plan, startedAt: addDays(until, 1) } }
+  })
+export const endDeload = () => update((s) => ({ ...s, deloadUntil: null, plan: { ...s.plan, startedAt: dateKey() } }))
+
+export const importData = (json) => update(() => ({ ...EMPTY, ...JSON.parse(json) }))
+export const resetAll = () => update(() => ({ ...EMPTY, createdAt: dateKey() }))
+
+// ───── selectors / helpers ─────
+export const setsOf = (log, it) => Array.from({ length: it.sets }, (_, i) => log?.sets?.[it.id]?.[i] || {})
+
+/** รายการท่าของวันนั้น (สัปดาห์เบา = ไม่เกิน 2 เซ็ตต่อท่า) */
+export function itemsFor(s, date) {
+  const day = s.plan?.days[dayIdx(new Date(date + 'T00:00:00'))]
+  const light = inDeload(s, date)
+  return (day?.items || []).filter((it) => byId[it.id]).map((it) => (light ? { ...it, sets: Math.min(it.sets, 2) } : it))
+}
+
+export function progressOf(s, date) {
+  const items = itemsFor(s, date)
+  const log = s.logs[date]
+  const total = items.reduce((n, it) => n + it.sets, 0)
+  const done = items.reduce((n, it) => n + setsOf(log, it).filter((x) => x.done).length, 0)
+  return { total, done, pct: total ? done / total : 0 }
+}
+
+export const volumeOf = (log) =>
+  Object.values(log?.sets || {}).flat().reduce((v, x) => (x.done ? v + (Number(x.kg) || 0) * (Number(x.reps) || 0) : v), 0)
+
+export const setsDone = (log) => Object.values(log?.sets || {}).flat().filter((x) => x.done).length
+
+// น้ำหนักล่าสุดที่เคยยกในท่านี้ (ก่อนวันที่ระบุ) เพื่อเติมให้อัตโนมัติ
+export function lastKg(logs, exId, before) {
+  for (const d of Object.keys(logs).sort().reverse()) {
+    if (d >= before) continue
+    const hit = logs[d].sets?.[exId]?.filter((x) => x.done && x.kg).pop()
+    if (hit) return hit.kg
+  }
+  return ''
+}
+
+export function personalBests(logs) {
+  const best = {}
+  for (const [d, log] of Object.entries(logs))
+    for (const [id, sets] of Object.entries(log.sets || {}))
+      for (const x of sets) {
+        const kg = Number(x.kg)
+        if (x.done && kg > 0 && (!best[id] || kg > best[id].kg)) best[id] = { kg, reps: x.reps, date: d }
+      }
+  return Object.entries(best).filter(([id]) => byId[id]).sort((a, b) => b[1].date.localeCompare(a[1].date))
+}
+
+// สถานะวัน: 'done' | 'rest' | 'skip' | 'miss' | 'todo' | 'pre' (ก่อนเริ่มใช้แอป)
+export function dayStatus(s, date) {
+  const day = s.plan?.days[dayIdx(new Date(date + 'T00:00:00'))]
+  if (s.logs[date]?.finished) return 'done'
+  if (date < s.createdAt) return 'pre'
+  if (s.logs[date]?.skipped) return 'skip'
+  if (!day || day.kind === 'rest') return 'rest'
+  return date < dateKey() ? 'miss' : 'todo'
+}
+
+export function streak(s) {
+  let n = 0
+  const d = new Date()
+  for (let i = 0; i < 365; i++, d.setDate(d.getDate() - 1)) {
+    const st = dayStatus(s, dateKey(d))
+    if (st === 'done') n++
+    else if (st === 'todo' || st === 'rest' || st === 'skip') continue
+    else break // miss | pre
+  }
+  return n
+}
+
+export const finishedDates = (s) => Object.entries(s.logs).filter(([, l]) => l.finished).map(([d]) => d).sort()
+
+export const waterGoal = (p) => Math.ceil(targets(p).water * 4) // แก้ว 250 มล.
+
+export function getAchievements(s) {
+  const w = s.weights
+  const goal = waterGoal(s.profile)
+  return achievements({
+    finished: finishedDates(s).length,
+    streak: streak(s),
+    hasPR: personalBests(s.logs).length > 0,
+    lost: w.length > 1 ? w.at(-1).kg - w[0].kg : 0,
+    measured: s.measures.length,
+    waterDays: Object.values(s.logs).filter((l) => (l.food?.water || 0) >= goal).length,
+  })
+}
+
+/** สรุปสัปดาห์ที่เริ่มวันจันทร์ = monday (YYYY-MM-DD) */
+export function weekStats(s, monday) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+  const logs = days.map((d) => s.logs[d]).filter(Boolean)
+  return {
+    workouts: logs.filter((l) => l.finished).length,
+    sets: logs.reduce((n, l) => n + setsDone(l), 0),
+    volume: logs.reduce((n, l) => n + volumeOf(l), 0),
+  }
+}
