@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { dateKey, dayIdx, targets } from './lib/calc.js'
 import { achievements, addDays, inDeload } from './lib/coach.js'
 import { byId } from './data/exercises.js'
+import { stamp } from './lib/merge.js'
 
 const KEY = 'brightside:v1'
 const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], deloadUntil: null, createdAt: dateKey() }
@@ -14,11 +15,19 @@ const subs = new Set()
 export let saveFailed = false
 
 export const getState = () => state
-export function update(fn) {
-  state = fn(state)
+const localSubs = new Set() // ฟังเฉพาะการแก้ไขโดยผู้ใช้ (ใช้สั่งซิงก์) ไม่รวมข้อมูลที่เพิ่งรับจากคลาวด์
+function commit(next) {
+  state = next
   try { localStorage.setItem(KEY, JSON.stringify(state)); saveFailed = false } catch { saveFailed = true /* โหมดส่วนตัว/พื้นที่เต็ม — ใช้ต่อใน memory */ }
   subs.forEach((f) => f())
 }
+export function update(fn) {
+  commit(stamp(state, fn(state))) // ประทับเวลาแก้ไขรายรายการ เพื่อให้ซิงก์รวมข้อมูลสองเครื่องได้
+  localSubs.forEach((f) => f())
+}
+/** ใส่ state ที่ merge แล้วจากคลาวด์ (ไม่ประทับเวลาใหม่ ไม่ทำให้เกิดการซิงก์ซ้ำ) */
+export const replaceState = commit
+export const onLocalChange = (f) => (localSubs.add(f), () => localSubs.delete(f))
 export const useStore = (sel = (s) => s) =>
   sel(useSyncExternalStore((f) => (subs.add(f), () => subs.delete(f)), () => state))
 

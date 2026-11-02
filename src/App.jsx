@@ -8,6 +8,8 @@ import Library from './pages/Library.jsx'
 import Progress from './pages/Progress.jsx'
 import Me from './pages/Me.jsx'
 import { ImportSheet } from './components/SharePlan.jsx'
+import { JoinSync } from './components/SyncPanel.jsx'
+import { startSync } from './lib/sync.js'
 
 const NAV = [
   ['today', 'วันนี้', CalendarCheck],
@@ -51,8 +53,11 @@ export default function App() {
   const startTimer = useCallback((sec, label = 'พัก') => setRest({ end: Date.now() + sec * 1000, label }), [])
   const stopRest = useCallback(() => setRest(null), [])
   useEffect(() => { if (!param) scrollTo(0, 0) }, [page, param])
+  useEffect(startSync, [])
+  // ลิงก์เชื่อมเครื่อง #/sync/รหัส: ถามยืนยันก่อน (ใช้ได้แม้เครื่องนี้ยังไม่มีโปรไฟล์)
+  const join = page === 'sync' ? <JoinSync key={param} secret={param || ''} toast={toast} onDone={() => { location.hash = '#/today' }} /> : null
 
-  if (!profile || !plan) return <Onboarding sharedCode={page === 'import' ? param : undefined} />
+  if (!profile || !plan) return <><Onboarding sharedCode={page === 'import' ? param : undefined} />{join}{msg && <div className="toast" role="status">{msg}</div>}</>
 
   const view = {
     today: <Today key={param} date={/^\d{4}-\d{2}-\d{2}$/.test(param) ? param : undefined} startTimer={startTimer} toast={toast} />,
@@ -73,6 +78,7 @@ export default function App() {
       </nav>
       {saveFailed && <div className="warnbar" role="alert">บันทึกลงเครื่องไม่ได้ (พื้นที่เต็มหรือโหมดส่วนตัว) ข้อมูลจะหายเมื่อปิดหน้านี้ — ไปหน้า “ฉัน” แล้วกด “สำรอง”</div>}
       <main>{view}</main>
+      {join}
       {page === 'import' && <ImportSheet key={param} code={param || ''} onClose={() => { location.hash = '#/plan' }} toast={toast} />}
       {rest && <RestTimer end={rest.end} label={rest.label} onAdd={(s) => setRest((r) => ({ ...r, end: r.end + s * 1000 }))} onStop={stopRest} />}
       {msg && <div className="toast" role="status">{msg}</div>}

@@ -4,6 +4,8 @@ import { BodyForm, GoalForm, toForm, toProfile, validate, isValid } from '../com
 import { BmiGauge, Seg } from '../components/ui.jsx'
 import { bmi, targets } from '../lib/calc.js'
 import { useStore, saveProfile, getState, importData, resetAll } from '../store.js'
+import SyncPanel from '../components/SyncPanel.jsx'
+import { useSync } from '../lib/sync.js'
 
 const MEALS = [
   ['เช้า', 'ไข่ต้ม 2–3 ฟอง + ข้าวโอ๊ตหรือขนมปังโฮลวีต 1–2 แผ่น', '18–25'],
@@ -15,6 +17,7 @@ const MEALS = [
 
 export default function Me({ toast }) {
   const profile = useStore((s) => s.profile)
+  const linked = useSync().linked
   const [f, setF] = useState(() => toForm(profile))
   const [touched, setTouched] = useState({})
   const set = (p) => setF((x) => ({ ...x, ...p }))
@@ -81,14 +84,16 @@ export default function Me({ toast }) {
         <p className="hint">ท่าหลักหนักๆ พัก 90 วินาทีขึ้นไป ท่าเสริมพัก 60 วินาทีได้</p>
       </section>
 
+      <SyncPanel toast={toast} />
+
       <section className="card col">
         <h2>ข้อมูลของฉัน</h2>
-        <p className="mute sm">ทุกอย่างเก็บในเบราว์เซอร์เครื่องนี้ ไม่มีการส่งขึ้นเซิร์ฟเวอร์ สำรองไว้เป็นไฟล์เพื่อย้ายเครื่องได้</p>
+        <p className="mute sm">{linked ? 'ข้อมูลเก็บในเครื่องนี้และซิงก์ขึ้นคลาวด์แบบเข้ารหัสไปยังเครื่องที่เชื่อมไว้ สำรองเป็นไฟล์ไว้อีกชั้นได้' : 'ทุกอย่างเก็บในเบราว์เซอร์เครื่องนี้ ไม่มีการส่งขึ้นเซิร์ฟเวอร์ สำรองไว้เป็นไฟล์เพื่อย้ายเครื่องได้'}</p>
         <div className="two">
           <button className="btn" onClick={exportData}><Download /> สำรอง</button>
           <label className="btn" style={{ cursor: 'pointer' }}><Upload /> นำเข้า<input type="file" accept="application/json" onChange={onImport} className="sr" /></label>
         </div>
-        <button className="btn danger ghost" onClick={() => confirm('ลบข้อมูลทั้งหมดและเริ่มใหม่?') && (resetAll(), (location.hash = '#/'), location.reload())}><Trash2 /> ลบข้อมูลทั้งหมด</button>
+        <button className="btn danger ghost" onClick={() => confirm(linked ? 'ลบข้อมูลทั้งหมด? เครื่องอื่นที่เชื่อมไว้จะถูกลบด้วยเมื่อซิงก์ ถ้าไม่ต้องการ ให้กด "เลิกเชื่อมเครื่องนี้" ก่อน' : 'ลบข้อมูลทั้งหมดและเริ่มใหม่?') && (resetAll(), (location.hash = '#/'), location.reload())}><Trash2 /> ลบข้อมูลทั้งหมด</button>
       </section>
 
       <footer className="hint">

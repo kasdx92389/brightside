@@ -1,0 +1,9 @@
+name = "brightside-sync"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# database_id ได้จาก `npx wrangler d1 create brightside-sync` (ตอน dev ในเครื่องใช้ค่าใดก็ได้)
+[[d1_databases]]
+binding = "DB"
+database_name = "brightside-sync"
+database_id = "00000000-0000-0000-0000-000000000000"
