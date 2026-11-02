@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { getState, replaceState, onLocalChange } from '../store.js'
 import { merge, stampAll } from './merge.js'
-import { syncOnce, newSecret, validSecret, deleteCloud, SyncError } from './syncCore.js'
+import { syncOnce, peek, newSecret, validSecret, deleteCloud, SyncError } from './syncCore.js'
 
 // ที่อยู่ Worker ตั้งตอน build: VITE_SYNC_URL=https://….workers.dev  (ว่าง = ซ่อนฟีเจอร์ซิงก์ทั้งหมด)
 export const SYNC_URL = (import.meta.env.VITE_SYNC_URL || '').replace(/\/$/, '')
@@ -17,8 +17,8 @@ export const useSync = () => useSyncExternalStore((f) => (subs.add(f), () => sub
 export const getSecret = () => cfg()?.secret ?? ''
 export const joinUrl = (secret) => `${location.origin}${location.pathname}#/sync/${secret}`
 
-let running = false, again = false, timer
-const schedule = (ms = 4000) => { clearTimeout(timer); timer = setTimeout(() => runSync().catch(() => {}), ms) }
+let running = false, again = false, timer, knownRev = null, dirty = false
+const schedule = (ms = 1000) => { clearTimeout(timer); timer = setTimeout(() => runSync().catch(() => {}), ms) }
 
 /** ซิงก์หนึ่งรอบ · mustExist = ตอนเชื่อมเครื่องใหม่ ต้องมีรหัสนี้บนคลาวด์อยู่แล้ว */
 export async function runSync({ mustExist = false } = {}) {
@@ -27,17 +27,20 @@ export async function runSync({ mustExist = false } = {}) {
   if (running) { again = true; return }
   running = true
   set({ busy: true, error: '' })
+  dirty = false
   try {
     const before = getState()
-    const { state } = await syncOnce({ url: SYNC_URL, secret: c.secret, local: before, mustExist })
+    const { state, rev } = await syncOnce({ url: SYNC_URL, secret: c.secret, local: before, mustExist })
     // ผู้ใช้อาจแก้ข้อมูลระหว่างรอเครือข่าย → รวมกับค่าล่าสุดอีกครั้ง (merge ซ้ำได้ ไม่เสียอะไร)
     const now = getState()
     const next = now === before ? state : merge(now, state)
     if (JSON.stringify(next) !== JSON.stringify(now)) replaceState(next)
+    knownRev = rev
     const last = Date.now()
     save({ ...c, last })
     set({ last })
   } catch (e) {
+    dirty = true // ลองใหม่ในรอบเช็กถัดไป
     set({ error: e instanceof SyncError ? e.message : 'ซิงก์ไม่สำเร็จ' })
     throw e
   } finally {
@@ -47,7 +50,7 @@ export async function runSync({ mustExist = false } = {}) {
   }
 }
 
-const clear = () => { localStorage.removeItem(KEY); set({ linked: false, last: null, error: '' }) }
+const clear = () => { localStorage.removeItem(KEY); knownRev = null; set({ linked: false, last: null, error: '' }) }
 
 /** เครื่องแรก: สร้างรหัสเชื่อมและส่งข้อมูลขึ้นไป · ข้อมูลของเครื่องนี้ชนะข้อมูลเก่าที่ชนกันตอนเชื่อมครั้งแรก */
 export async function createLink() {
@@ -79,9 +82,15 @@ let started = false
 export function startSync() {
   if (started || !SYNC_URL) return
   started = true
-  onLocalChange(() => cfg() && schedule())
+  onLocalChange(() => cfg() && ((dirty = true), schedule()))
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && cfg() && schedule(500))
   addEventListener('online', () => cfg() && schedule(500))
-  setInterval(() => document.visibilityState === 'visible' && cfg() && runSync().catch(() => {}), 120000)
+  // ใกล้เรียลไทม์: ทุก 5 วินาทีที่แอปเปิดอยู่ ถามแค่เลขรุ่นบนคลาวด์ (เบา) · เปลี่ยนเมื่อไหร่ค่อยซิงก์เต็มรอบ
+  setInterval(async () => {
+    if (document.visibilityState !== 'visible' || !cfg() || running || !navigator.onLine) return
+    try {
+      if (dirty || knownRev === null || await peek({ url: SYNC_URL, secret: cfg().secret, rev: knownRev })) await runSync()
+    } catch { /* เงียบ: รอบหน้าลองใหม่ */ }
+  }, 5000)
   if (cfg()) schedule(300)
 }

@@ -55,10 +55,10 @@ export class SyncError extends Error {
 
 const canon = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x))
 
-async function call(url, id, token, method, body) {
+async function call(url, id, token, method, body, query = '') {
   let res
   try {
-    res = await fetch(`${url}/s/${id}`, {
+    res = await fetch(`${url}/s/${id}${query}`, {
       method, headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000),
     })
@@ -83,17 +83,25 @@ export async function syncOnce({ url, secret, local, mustExist = false }) {
     else throw new SyncError('server', `เซิร์ฟเวอร์ตอบผิดปกติ (${got.status})`)
 
     const merged = remote ? merge(local, remote) : local
-    if (remote && canon(merged) === canon(remote)) return { state: merged, pushed: false }
+    if (remote && canon(merged) === canon(remote)) return { state: merged, pushed: false, rev }
 
     const put = await call(url, id, token, 'PUT', { baseRev: rev, data: await seal(key, merged) })
-    if (put.ok) return { state: merged, pushed: true }
+    if (put.ok) return { state: merged, pushed: true, rev: put.json.rev }
     if (put.status !== 409) throw new SyncError('server', `ส่งข้อมูลไม่สำเร็จ (${put.status})`)
     local = merged // มีเครื่องอื่นส่งมาก่อนเรา → ดึงใหม่แล้วรวมอีกรอบ
   }
   throw new SyncError('busy', 'ซิงก์ชนกันหลายรอบ ลองใหม่อีกครั้ง')
 }
 
-export const deleteCloud = async ({ url, secret }) => {
+/** ถามเลขรุ่นบนคลาวด์ (เบามาก ไม่โหลดข้อมูล) · true = ต่างจาก rev ที่เรารู้ ควรซิงก์ · error/403 = ไม่รบกวน */
+export async function peek({ url, secret, rev }) {
+  const { id, token } = await derive(secret)
+  const r = await call(url, id, token, 'GET', undefined, '?peek')
+  if (r.status === 404) return true
+  return r.ok && r.json.rev !== rev
+}
+
+export const deleteCloud =async ({ url, secret }) => {
   const { id, token } = await derive(secret)
   const r = await call(url, id, token, 'DELETE')
   if (!r.ok) throw new SyncError('server', `ลบข้อมูลบนคลาวด์ไม่สำเร็จ (${r.status})`)

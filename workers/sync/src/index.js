@@ -25,9 +25,12 @@ export default {
     if (!id || !HEX64.test(token)) return json({ error: 'bad request' }, 400)
 
     const th = await sha256(token)
-    const row = await env.DB.prepare('SELECT th, rev, data FROM s WHERE id = ?').bind(id).first()
+    // ?peek = ถามแค่เลขรุ่น (ไม่โหลดข้อมูล) ให้แอปเช็กถี่ๆ ได้โดยไม่เปลืองแบนด์วิดท์
+    const peek = req.method === 'GET' && new URL(req.url).searchParams.has('peek')
+    const row = await env.DB.prepare(`SELECT th, rev${peek ? '' : ', data'} FROM s WHERE id = ?`).bind(id).first()
     if (row && row.th !== th) return json({ error: 'forbidden' }, 403)
 
+    if (peek) return row ? json({ rev: row.rev }) : json({ error: 'not found' }, 404)
     if (req.method === 'GET') return row ? json({ rev: row.rev, data: row.data }) : json({ error: 'not found' }, 404)
 
     if (req.method === 'DELETE') {
