@@ -6,4 +6,4 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "brightside-sync"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "9fd56dcc-1a0a-4e92-918d-f28b9623f7c8"

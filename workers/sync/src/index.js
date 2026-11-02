@@ -1,6 +1,6 @@
 // brightside-sync: เก็บ "ข้อมูลที่เข้ารหัสแล้ว" หนึ่งก้อนต่อหนึ่งรหัสเชื่อม
 // เซิร์ฟเวอร์ไม่เห็นรหัสเชื่อมและไม่มีกุญแจถอดรหัส · สิทธิ์ = token ที่คำนวณจากรหัสเชื่อมฝั่งแอป
-const ORIGINS = ['https://kasdx92389.github.io', 'http://localhost:5173', 'http://localhost:4173', 'http://localhost:4179']
+const ORIGINS = ['https://kasdx92389.github.io', 'https://brightside.sudomont.com','http://localhost:5173', 'http://localhost:4173', 'http://localhost:4179']
 const MAX_BODY = 1_500_000
 const HEX64 = /^[0-9a-f]{64}$/
 
