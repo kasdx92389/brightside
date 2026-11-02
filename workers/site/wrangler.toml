@@ -1,0 +1,11 @@
+# เว็บ brightside (โฟลเดอร์ dist) โฮสต์บน Cloudflare ที่ brightside.sudomont.com
+# deploy: npm run build (ที่รากโปรเจกต์) แล้ว  cd workers/sync && npx wrangler deploy -c ../site/wrangler.toml
+name = "brightside-site"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "../../dist"
+
+[[routes]]
+pattern = "brightside.sudomont.com"
+custom_domain = true
