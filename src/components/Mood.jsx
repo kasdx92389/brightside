@@ -32,7 +32,7 @@ export function MoodFace({ id, size, label }) {
   if (!m) return null
   const i = MOODS.indexOf(m)
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : 'true'} focusable="false" style={size ? undefined : { width: '100%', height: 'auto' }}>
+    <svg viewBox="0 0 100 100" width={size} height={size} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : 'true'} focusable="false" className={size ? undefined : 'mf'}>
       <g transform={`rotate(${((i * 37) % 9) - 4} 50 50)`}><path d={BLOBS[i % 3]} fill={m.c} /></g>
       {FACES[id]}
     </svg>

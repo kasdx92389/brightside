@@ -557,6 +557,7 @@ dialog:focus { outline: none; }
 /* ───── อารมณ์ + ความทรงจำ ───── */
 .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem 0.25rem; }
 .mood { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px 4px; min-height: 44px; background: transparent; border: 0; border-radius: var(--r-sm); color: var(--mute); font-size: 0.75rem; line-height: 1.25; text-align: center; cursor: pointer; overflow-wrap: anywhere; }
+.mf { display: block; width: 100%; height: auto; }
 .mood svg { width: 100%; max-width: 52px; height: auto; transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .mood:hover svg { transform: scale(1.07) rotate(-3deg); }
 .mood[aria-checked='true'] { color: var(--text); font-weight: 600; background: var(--s2); box-shadow: inset 0 0 0 2px var(--mc); }
