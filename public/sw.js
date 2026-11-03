@@ -1,6 +1,6 @@
 // หน้า HTML: เครือข่ายก่อน (รอไม่เกิน 4 วิ ไม่งั้นใช้แคช) เพื่อให้ index.html ตรงกับไฟล์ที่ deploy ล่าสุด ไม่ชี้ไปไฟล์เก่าที่ถูกแทนที่ → หน้าขาว
 // ไฟล์อื่น (ไฟล์ที่มี hash/รูปท่า): stale-while-revalidate ใช้ออฟไลน์ได้
-const CACHE = 'brightside-v2'
+const CACHE = 'brightside-v3'
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './icon.svg', './manifest.webmanifest']))); self.skipWaiting() })
 self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())))
 // ไฟล์ /assets/index-<hash>.js|css ของ build เก่า ลบทิ้งเมื่อได้ตัวใหม่

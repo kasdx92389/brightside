@@ -19,28 +19,29 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" /></noscript>
     <style>
       /* หน้าโหลดแรก: แสดงทันทีระหว่างรอสคริปต์ (React จะแทนที่เมื่อพร้อม) */
-      #boot { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 0.75rem; background: #f7f8fb; color: #0f172a; font: 700 1.75rem system-ui, sans-serif; letter-spacing: -0.01em; }
-      #boot b { color: #ff7a1a; }
-      #boot i { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #e3e8f1; border-top-color: #ff7a1a; animation: bs-spin 0.8s linear infinite; }
+      #boot { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 1rem; background: #f7f8fb; }
+      #boot-retry { margin-top: 0.5rem; min-height: 44px; padding: 0 1.25rem; border-radius: 12px; border: 1px solid #e2e6ee; background: #fff; color: #0f172a; font: 500 1rem system-ui, sans-serif; }
+      #boot i { width: 32px; height: 32px; border-radius: 50%; border: 3px solid #e3e8f1; border-top-color: #ff7a1a; animation: bs-spin 0.8s linear infinite; }
       @keyframes bs-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { #boot i { animation-duration: 3s; } }
     </style>
     <script>
-      // ถ้าไฟล์สคริปต์โหลดไม่ได้ (เช่น แคชเก่าชี้ไปไฟล์ที่ถูกแทนที่หลังอัปเดต) ล้างแคชแล้วโหลดใหม่ให้เองหนึ่งครั้ง ไม่ต้องให้ผู้ใช้รีเฟรช
-      addEventListener('error', function (e) {
-        var t = e.target
-        if (!t || t.tagName !== 'SCRIPT' || sessionStorage.getItem('bs-reload')) return
-        sessionStorage.setItem('bs-reload', '1')
-        var done = function () { location.reload() }
-        var wipe = function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k) })) }) : Promise.resolve() }
-        var sw = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister() })) }) : Promise.resolve()
-        sw.then(wipe).then(done, done)
-      }, true)
+      // โหลดช้า/ไม่ขึ้นเกิน 8 วินาที: แสดงปุ่มให้ผู้ใช้แตะเพื่อล้างแคชแล้วโหลดใหม่เอง (ไม่รีโหลดอัตโนมัติ เพราะวนลูปได้)
+      setTimeout(function () {
+        var b = document.getElementById('boot')
+        if (!b) return
+        b.insertAdjacentHTML('beforeend', '<button id="boot-retry" type="button">โหลดช้าผิดปกติ แตะเพื่อโหลดใหม่</button>')
+        document.getElementById('boot-retry').onclick = function () {
+          var go = function () { location.reload() }
+          var sw = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister() })) }) : Promise.resolve()
+          sw.then(function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k) })) }) : 0 }).then(go, go)
+        }
+      }, 8000)
     </script>
     <title>brightside - ออกกำลังกาย</title>
   </head>
   <body>
-    <div id="root"><div id="boot"><span>bright<b>side</b></span><i aria-hidden="true"></i></div></div>
+    <div id="root"><div id="boot" role="status" aria-label="กำลังโหลด"><i></i></div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
