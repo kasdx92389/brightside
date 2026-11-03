@@ -11,6 +11,7 @@ import {
 import { Field } from '../components/ui.jsx'
 import ReviewCard from '../components/ReviewCard.jsx'
 import { moodOf } from '../lib/mood.js'
+import { MoodFace } from '../components/Mood.jsx'
 
 const short = (k) => new Date(k + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
 const sign = (n) => (n > 0 ? '+' : '') + n
@@ -195,12 +196,12 @@ export default function Progress({ toast }) {
             const st = dayStatus(s, k), mo = moodOf(logs[k])
             return (
               <a key={k} href={`#/memory/${k}`} className={`${st === 'done' ? 'done' : st === 'miss' ? 'miss' : ''} ${k === today ? 'today' : ''}`} aria-label={`${short(k)} ${ST_TH[st]}${mo ? ' · ' + mo.th : ''}`} aria-current={k === today ? 'date' : undefined}>
-                {mo && <b style={{ background: mo.c }} />}
+                {mo && <MoodFace id={mo.id} />}
               </a>
             )
           })}
         </div>
-        <div className="legend"><span><i className="d" /> ฝึกแล้ว</span><span><i className="m" /> พลาด</span><span><i /> พัก/ข้าม/ยังไม่ถึง</span><span><i className="dot" /> จุดสี = อารมณ์ที่บันทึก</span></div>
+        <div className="legend"><span><i className="d" /> ฝึกแล้ว</span><span><i className="m" /> พลาด</span><span><i /> พัก/ข้าม/ยังไม่ถึง</span><span><i className="dot" /> หน้ายิ้ม = อารมณ์ที่บันทึก</span></div>
         <p className="hint">แตะวันที่ใดก็ได้เพื่อดูความทรงจำ — อารมณ์และข้อความที่เคยเขียนไว้ (หรือบันทึกย้อนหลัง)</p>
         <a className="btn block" href="#/memory"><BookHeart /> เปิดความทรงจำทั้งเดือน</a>
       </section>
