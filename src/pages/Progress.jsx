@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Flame, CalendarCheck, Scale, Trophy, Plus, Activity, Ruler, Medal, Lock, Target } from 'lucide-react'
 import { byId } from '../data/exercises.js'
+import { foodById } from '../data/foods.js'
+import { itemSodium } from '../data/sodium.js'
 import { bmi, bmiBand, dateKey, dayIdx, targets } from '../lib/calc.js'
 import { addDays, daysBetween, goalProgress } from '../lib/coach.js'
 import {
@@ -70,6 +72,8 @@ export default function Progress() {
   const week7 = Array.from({ length: 7 }, (_, i) => logs[addDays(today, -i)]?.food || {})
   const fed = week7.filter((x) => x.kcal > 0)
   const avg = (k) => (fed.length ? Math.round(fed.reduce((n, x) => n + (Number(x[k]) || 0), 0) / fed.length) : 0)
+  const daySodium = (x) => (x.items || []).reduce((n, it) => n + itemSodium(it, foodById), 0)
+  const avgNa = fed.length ? Math.round(fed.reduce((n, x) => n + daySodium(x), 0) / fed.length) : 0
   const waterOk = week7.filter((x) => (x.water || 0) >= waterGoal(profile)).length
   const NROWS = [['พลังงาน (kcal)', 'kcal', nt.kcal], ['โปรตีน (g)', 'protein', Math.round((nt.protein[0] + nt.protein[1]) / 2)], ['คาร์บ (g)', 'carb', nt.carb], ['ไขมัน (g)', 'fat', nt.fat]]
 
@@ -158,9 +162,10 @@ export default function Progress() {
               const v = avg(k), pct = goal ? (v - goal) / goal : 0
               return <tr key={k}><td>{label}</td><td className="num">{v.toLocaleString()}</td><td className="num">{goal.toLocaleString()}</td><td className={Math.abs(pct) <= 0.1 ? 'tone-good' : 'tone-warn'}>{sign(Math.round(pct * 100))}%</td></tr>
             })}
+            <tr><td>โซเดียม (มก.)</td><td className="num">{avgNa.toLocaleString()}</td><td className="num">{nt.sodium.toLocaleString()}</td><td className={avgNa <= nt.sodium ? 'tone-good' : 'tone-warn'}>{avgNa <= nt.sodium ? 'ไม่เกิน' : `เกิน ${sign(Math.round(((avgNa - nt.sodium) / nt.sodium) * 100))}%`}</td></tr>
           </tbody></table>
         ) : <p className="mute">ยังไม่มีบันทึกอาหาร ไปหน้า “วันนี้” แล้วแตะเลือกอาหารที่กิน ระบบจะสรุปให้ว่าตรงเป้าหรือไม่</p>}
-        <p className="hint">บันทึกอาหาร {fed.length}/7 วัน · ดื่มน้ำถึงเป้า {waterOk}/7 วัน{fed.length > 0 && fed.length < 3 ? ' · บันทึกอย่างน้อย 3 วันเพื่อให้ค่าเฉลี่ยแม่นขึ้น' : ''} · ตรงเป้า = ต่างไม่เกิน ±10%</p>
+        <p className="hint">บันทึกอาหาร {fed.length}/7 วัน · ดื่มน้ำถึงเป้า {waterOk}/7 วัน{fed.length > 0 && fed.length < 3 ? ' · บันทึกอย่างน้อย 3 วันเพื่อให้ค่าเฉลี่ยแม่นขึ้น' : ''} · ตรงเป้า = ต่างไม่เกิน ±10% (โซเดียม = ไม่เกินเป้าคือดี ค่าประมาณจากเมนู)</p>
       </section>
 
       <section className="card col">
