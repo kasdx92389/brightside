@@ -6,7 +6,7 @@ import { byId, EXERCISES } from '../src/data/exercises.js'
 import { FOODS, ADDONS, addonById, suggestAddons } from '../src/data/foods.js'
 import { unitInfo, fmtAmt } from '../src/lib/units.js'
 import { mealTargets } from '../src/lib/calc.js'
-import { addFood, removeFood, getState } from '../src/store.js'
+import { addFood, removeFood, updateFood, getState } from '../src/store.js'
 import { overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
 
 // BMI ตามตัวอย่างใน Artifact (67.95 กก. / 168 ซม.)
@@ -141,4 +141,9 @@ removeFood(D, 0)
 assert.deepEqual([getState().logs[D].food.kcal, getState().logs[D].food.protein, getState().logs[D].food.items.length], [100, 5.5, 1])
 removeFood(D, 5) // index เกิน ไม่ทำอะไร
 assert.equal(getState().logs[D].food.items.length, 1)
+// แก้รายการ: ยอดรวมต้องตามไปด้วย · index เกินไม่ทำอะไร
+updateFood(D, 0, { id: 'y', n: 'y', q: 3, s: 2, k: 150, p: 8, c: 15, f: 2 })
+assert.deepEqual([getState().logs[D].food.kcal, getState().logs[D].food.protein, getState().logs[D].food.items[0].s], [150, 8, 2])
+updateFood(D, 9, { id: 'z', n: 'z', q: 1, s: 0, k: 1, p: 1, c: 1, f: 1 })
+assert.equal(getState().logs[D].food.kcal, 150)
 console.log('ok — nutrition')

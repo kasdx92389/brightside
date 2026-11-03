@@ -89,6 +89,11 @@ const bump = (food, it, sign) => {
 }
 export const addFood = (date, it) =>
   patchLog(date, (log) => ({ ...log, food: { ...bump(log.food || {}, it, 1), items: [...(log.food?.items || []), it] } }))
+export const updateFood = (date, i, it) =>
+  patchLog(date, (log) => {
+    const items = log.food?.items || []
+    return items[i] ? { ...log, food: { ...bump(bump(log.food, items[i], -1), it, 1), items: items.map((x, n) => (n === i ? it : x)) } } : log
+  })
 export const removeFood = (date, i) =>
   patchLog(date, (log) => {
     const items = log.food?.items || []
