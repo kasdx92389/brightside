@@ -1,6 +1,9 @@
-// น้ำหนักเริ่มต้นที่แนะนำต่อท่า — ใช้เป็น placeholder ช่องน้ำหนัก เมื่อยังไม่เคยบันทึกท่านั้น
-// เป็นจุดเริ่มต้นสำหรับ "เซ็ตทำงาน" ราว 10–12 ครั้งที่ยังเหลือแรงอีก 2–3 ครั้ง ไม่ใช่ค่ามาตรฐานสากลและไม่ใช่คำแนะนำทางการแพทย์
-// ที่มา: สัดส่วนต่อน้ำหนักตัวของผู้ฝึกใหม่ (ปรับเทียบจากตารางมาตรฐานความแข็งแรงของผู้เริ่มต้น แล้วลดลงให้ปลอดภัย)
+// น้ำหนักเริ่มต้นที่แนะนำต่อท่า (ตั้งให้ "เบากว่าที่น่าจะยกได้" เพื่อความปลอดภัย: ครั้งแรกควรเบาแล้วค่อยเพิ่ม · ปรับตามน้ำหนักที่ผู้ใช้ยกจริงอัตโนมัติ) — ใช้เป็น placeholder ช่องน้ำหนัก เมื่อยังไม่เคยบันทึกท่านั้น
+// เป็นจุดเริ่มต้นสำหรับ "เซ็ตทำงาน" ราว 10–12 ครั้งที่ยังเหลือแรงอีกราว 3 ครั้ง ไม่ใช่ค่ามาตรฐานสากลและไม่ใช่คำแนะนำทางการแพทย์
+// ที่มา (ตรงตามจริง): สัดส่วนต่อน้ำหนักตัวด้านล่างเป็นค่าประมาณของผู้พัฒนาแอพ ไม่ได้มาจากตารางงานวิจัย (ไม่มีงานวิจัยที่ให้สัดส่วนของผู้เริ่มต้นแบบนี้)
+//   จึงตั้งให้เบาไว้ก่อนแล้วให้แอพปรับตามน้ำหนักที่ผู้ใช้ยกจริง (personalFactor) และปุ่มหนักไป/เบาไป
+// ตัวคูณเพศ: แรงสัมบูรณ์ของผู้หญิง ≈ 52% (ส่วนบน) / 66% (ส่วนล่าง) ของผู้ชาย (Miller 1993, n=16) ÷ น้ำหนักตัวผู้หญิงที่ ~80–85% ของผู้ชาย → ≈ 0.6 / 0.75
+// ตัวคูณอายุ: ค่าประมาณระมัดระวัง (มวลกล้ามเนื้อเริ่มลดชัดช่วงปลายอายุ 40–50 โดยเฉพาะส่วนขา — Janssen 2000; แรงลดตามอายุทั้งสองเพศ — Lindle 1997)
 // ปรับตาม: BMI (เกณฑ์เอเชีย — ใช้มวลที่ไม่ใช่ไขมันเป็นฐาน) · เพศ · อายุ · ระดับประสบการณ์ · ชนิดอุปกรณ์
 
 // id → [สัดส่วนต่อน้ำหนักตัวที่ใช้คำนวณ, ชนิด]  ชนิด: h = ดัมเบลข้างละ · t = ตัวเดียว/รวม · b = บาร์เบลรวมบาร์ · s = เครื่อง/เคเบิล (น้ำหนักที่สแตก)
@@ -43,8 +46,11 @@ export function effectiveWeight(weight, height) {
   return w <= ideal ? w : ideal + 0.4 * (w - ideal)
 }
 
+// ตัวคูณความปลอดภัยรวม + ท่าที่ก้ม/ใช้หลังล่าง (โรว์ก้มตัว เดดลิฟต์ RDL ฯลฯ) เบากว่าอีกชั้น
+const SAFETY = 0.7
+const HINGE = new Set(['bent-db-row', 'barbell-row', 'tbar-row', 'db-rdl', 'rdl-barbell', 'good-morning', 'barbell-deadlift', 'rack-pull', 'trap-bar-deadlift', 'sumo-deadlift', 'deficit-deadlift', 'cable-pull-through', 'kettlebell-swing', 'kb-snatch'])
 const ageF = (a) => (a < 18 ? 0.7 : a < 40 ? 1 : a < 50 ? 0.9 : a < 60 ? 0.8 : a < 70 ? 0.65 : 0.55)
-const levelF = (l) => [1, 1, 1.3, 1.6][l] || 1
+const levelF = (l) => [1, 1, 1.15, 1.3][l] || 1
 
 const round = (v, tag) => {
   if (tag === 'b') return Math.max(10, Math.round(v / 2.5) * 2.5)
@@ -53,14 +59,38 @@ const round = (v, tag) => {
 }
 
 /** → { kg, tag } หรือ null (ตัวเปล่า/คาร์ดิโอ/ยางยืด/ไม่มีข้อมูลโปรไฟล์) */
-export function suggestKg(ex, p) {
+export function suggestKg(ex, p, factor = 1) {
   const r = R[ex?.id]
   if (!r || !p) return null
   const eff = effectiveWeight(p.weight, p.height)
   if (!eff) return null
   const sex = p.sex === 'f' ? (LOWER.has(ex.g) ? 0.75 : ex.g === 'core' ? 0.7 : 0.6) : 1
-  const kg = round(r[0] * eff * sex * ageF(Number(p.age) || 30) * levelF(Number(p.level) || 1), r[1])
+  const kg = round(r[0] * eff * sex * ageF(Number(p.age) || 30) * levelF(Number(p.level) || 1) * SAFETY * (HINGE.has(ex.id) ? 0.8 : 1) * factor, r[1])
   return { kg, tag: r[1] }
+}
+
+/**
+ * ตัวคูณส่วนตัว: เทียบน้ำหนักที่ผู้ใช้ยกจริงล่าสุดของแต่ละท่ากับที่แอปแนะนำ (มัธยฐาน) ใช้ปรับคำแนะนำของท่าที่ยังไม่เคยเล่น
+ * ต้องมีท่าที่บันทึกน้ำหนักอย่างน้อย 2 ท่า ไม่งั้นคืน 1 · จำกัด 0.4–1.3 กันค่าเพี้ยน
+ */
+export function personalFactor(logs, byId, p) {
+  const ratios = []
+  const seen = new Set()
+  for (const d of Object.keys(logs || {}).sort().reverse()) {
+    for (const [id, sets] of Object.entries(logs[d]?.sets || {})) {
+      if (seen.has(id) || !byId[id]) continue
+      const done = (sets || []).filter((x) => x?.done && Number(x.kg) > 0)
+      if (!done.length) continue
+      const base = suggestKg(byId[id], p, 1)
+      if (!base) continue
+      seen.add(id)
+      ratios.push(Math.max(...done.map((x) => Number(x.kg))) / base.kg)
+    }
+  }
+  if (ratios.length < 2) return 1
+  ratios.sort((a, b) => a - b)
+  const m = ratios.length % 2 ? ratios[(ratios.length - 1) / 2] : (ratios[ratios.length / 2 - 1] + ratios[ratios.length / 2]) / 2
+  return Math.min(1.3, Math.max(0.4, Math.round(m * 100) / 100))
 }
 
 export const LOAD_UNIT = { h: 'ข้างละ', t: '(ตัวเดียว)', b: 'รวมบาร์', s: 'ที่เครื่อง/เคเบิล' }

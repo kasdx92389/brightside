@@ -28,7 +28,7 @@ const ALLOWED = { gym: ['bw', 'db', 'bb', 'cable', 'machine', 'band'], db: ['bw'
 const POOL = {
   chestPress: ['barbell-bench', 'db-bench-press', 'machine-chest-press', 'pushup', 'incline-pushup', 'smith-bench', 'wide-pushup'],
   chestIncline: ['incline-db-press', 'cable-crossover', 'db-fly', 'incline-pushup', 'pushup', 'incline-barbell-bench', 'pec-deck', 'incline-db-fly', 'decline-pushup'],
-  shoulderPress: ['barbell-ohp', 'arnold-press', 'db-shoulder-press', 'machine-shoulder-press'],
+  shoulderPress: ['barbell-ohp', 'arnold-press', 'db-shoulder-press', 'machine-shoulder-press', 'pike-pushup'],
   lateral: ['lateral-raise', 'reverse-fly', 'face-pull', 'cable-lateral-raise'],
   triceps: ['triceps-pushdown', 'close-grip-bench', 'overhead-triceps-ext', 'bench-dips', 'skullcrusher', 'cable-overhead-triceps', 'dips-triceps', 'triceps-kickback'],
   vertPull: ['pullup', 'lat-pulldown', 'vbar-pulldown', 'chinup', 'inverted-row', 'reverse-grip-pulldown', 'assisted-pullup'],
@@ -60,7 +60,7 @@ const DAY = {
   push: ['Push', 'อก ไหล่ หลังแขน', ['chestPress', 'chestIncline', 'shoulderPress', 'lateral', 'triceps', 'triceps'], 'proPush'],
   pull: ['Pull', 'หลัง หน้าแขน', ['vertPull', 'horizPull', 'rearDelt', 'biceps', 'biceps'], 'proPull'],
   legs: ['Legs', 'ขา ก้น หน้าท้อง', ['squat', 'hinge', 'lunge', 'legIso', 'core2', 'calves'], 'proLegs'],
-  upper: ['Upper', 'ร่างกายส่วนบน', ['chestPress', 'horizPull', 'shoulderPress', 'vertPull', 'biceps', 'triceps'], 'proPush'],
+  upper: ['Upper', 'ร่างกายส่วนบน', ['chestPress', 'chestIncline', 'horizPull', 'shoulderPress', 'vertPull', 'biceps', 'triceps'], 'proPush'],
   lower: ['Lower', 'ร่างกายส่วนล่าง', ['squat', 'hinge', 'glute', 'legIso', 'core1', 'calves'], 'proLegs'],
   fullA: ['Full Body A', 'ทั้งตัว', ['squat', 'chestPress', 'horizPull', 'shoulderPress', 'core1'], 'proFull'],
   fullB: ['Full Body B', 'ทั้งตัว', ['hinge', 'chestIncline', 'vertPull', 'lateral', 'core2'], 'proFull'],
@@ -104,7 +104,9 @@ export function generatePlan({ goal, level, days, equip }) {
   const week = Array.from({ length: 7 }, (_, i) => {
     const s = at.indexOf(i)
     if (s < 0) return i === 6 || goal === 'muscle' ? REST : WALK
-    const [name, focus, slots, pro] = DAY[seq[s]]
+    const [name, focus, allSlots, pro] = DAY[seq[s]]
+    // วัน Upper มีท่าอกท่าที่ 2 เฉพาะเป้าสร้างกล้าม (อก ≥9 เซ็ต/สัปดาห์) — เป้าอื่นคงความยาวเซสชันเดิม
+    const slots = goal === 'muscle' ? allSlots : allSlots.filter((x, i) => !(seq[s] === 'upper' && x === 'chestIncline' && i === 1))
     const taken = []
     const cap = level === 1 ? (goal === 'muscle' ? 6 : 5) : slots.length // มือใหม่ ≤5 ท่า/วัน (≈45 นาทีรวมคาร์ดิโอ)
     const items = (level === 3 ? [...slots, pro] : slots.slice(0, cap)).flatMap((p) => {

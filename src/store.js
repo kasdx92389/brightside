@@ -41,6 +41,9 @@ export const saveProfile = (profile) =>
     return { ...s, profile: { rest: 90, ...s.profile, ...profile }, weights: weights.sort(byDate) }
   })
 
+// ปรับความหนักของ "น้ำหนักที่แนะนำ" ตามที่ผู้ใช้กดว่าหนักไป/เบาไป (ตัวคูณ 0.5–1.5 เก็บในโปรไฟล์ ซิงก์ข้ามเครื่อง)
+export const setLoadAdj = (v) => update((s) => ({ ...s, profile: { ...s.profile, loadAdj: Math.min(1.5, Math.max(0.5, Math.round(v * 100) / 100)) } }))
+
 export const setPlan = (plan) => update((s) => ({ ...s, plan: { ...plan, startedAt: dateKey() }, deloadUntil: null }))
 
 export const editDay = (i, fn) =>

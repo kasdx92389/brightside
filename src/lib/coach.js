@@ -1,6 +1,19 @@
 // ตรรกะ "โค้ช": แนะนำเพิ่มน้ำหนัก สัปดาห์เบา เป้าหมายน้ำหนัก เหรียญรางวัล — ฟังก์ชันล้วน ทดสอบได้ใน scripts/check.mjs
 
 const topReps = (s) => Number(String(s).match(/(\d+)(?!.*\d)/)?.[1]) || 0 // '10–12' → 12
+const botReps = (s) => Number(String(s).match(/\d+/)?.[0]) || 0 // '10–12' → 10
+
+/**
+ * ก้าวเพิ่ม/ลดน้ำหนักที่เหมาะกับอุปกรณ์และน้ำหนักปัจจุบัน — ACSM 2009: เพิ่มครั้งละ ~2–10% เมื่อทำเกินเป้า 1–2 ครั้ง
+ * (ดัมเบลเบาเล็กสุด 1 กก. จึงอาจเกิน 10% ได้ นั่นคือก้าวที่เล็กที่สุดที่ทำได้จริง)
+ */
+export function loadStep(eq, kg) {
+  if (eq === 'db') return kg <= 10 ? 1 : kg < 30 ? 2 : 2.5
+  if (eq === 'bb') return kg < 60 ? 2.5 : 5
+  if (eq === 'cable' || eq === 'machine') return kg < 50 ? 2.5 : 5
+  return 2.5
+}
+
 export const isTimed = (reps) => /นาที|วินาที|เมตร/.test(reps)
 
 /** วินาทีสูงสุดของท่าที่นับเวลา (ไว้ตั้ง timer) — null ถ้าไม่ใช่เวลา/ยาวเกิน 10 นาที */
@@ -15,7 +28,7 @@ export function timedSeconds(reps) {
  * กฎจาก Artifact: ทำครบทุกเซ็ตที่ครั้งสูงสุดของช่วง (เช่น 12 ครั้ง) → ครั้งถัดไปเพิ่มน้ำหนัก
  * คืน { kg, was } หรือ null  (ท่าตัวเปล่า/ไม่มีบันทึกก่อนหน้า = null)
  */
-export function overloadHint(logs, id, reps, before, step = 2.5) {
+export function overloadHint(logs, id, reps, before, step = 2.5, eq) {
   const top = topReps(reps)
   if (!top || isTimed(reps)) return null
   for (const d of Object.keys(logs).sort().reverse()) {
@@ -26,7 +39,30 @@ export function overloadHint(logs, id, reps, before, step = 2.5) {
     const kg = Math.max(...done.map((x) => Number(x.kg) || 0))
     if (!kg) return null
     const hit = done.length >= sets.length && done.every((x) => Number(x.reps) >= top && Number(x.kg) >= kg)
-    return hit ? { kg: kg + step, was: kg } : null
+    return hit ? { kg: kg + (eq ? loadStep(eq, kg) : step), was: kg } : null
+  }
+  return null
+}
+
+/**
+ * ถอยลงเมื่อยกไม่ไหวจริง: ครั้งก่อนอย่างน้อยครึ่งหนึ่งของเซ็ตที่ทำ ทำได้ต่ำกว่าช่วงครั้งเป้าหมายเกิน 1 ครั้ง → แนะนำลด ~10%
+ * คืน { kg, was } หรือ null (ไม่ถอยถ้าข้อมูลไม่พอ/ท่านับเวลา)
+ */
+export function regressHint(logs, id, reps, before, eq) {
+  const bot = botReps(reps)
+  if (!bot || isTimed(reps)) return null
+  for (const d of Object.keys(logs).sort().reverse()) {
+    if (d >= before) continue
+    const done = (logs[d].sets?.[id] || []).filter((x) => x?.done)
+    if (!done.length) continue
+    const kg = Math.max(...done.map((x) => Number(x.kg) || 0))
+    if (!kg) return null
+    const short = done.filter((x) => Number(x.reps) > 0 && Number(x.reps) < bot - 1)
+    if (done.length < 2 || short.length < Math.ceil(done.length / 2)) return null
+    const st = loadStep(eq, kg)
+    let nk = Math.round((kg * 0.9) / st) * st
+    if (nk >= kg) nk = kg - st // ปัดแล้วไม่ลด → ลดอย่างน้อย 1 ก้าว
+    return { kg: Math.max(st, nk), was: kg }
   }
   return null
 }

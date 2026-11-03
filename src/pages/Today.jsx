@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Moon, SkipForward, HeartPulse, ArrowLeftRight, Lightbulb } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, TrendingDown, Moon, SkipForward, HeartPulse, ArrowLeftRight, Lightbulb } from 'lucide-react'
 import { Ring, Media } from '../components/ui.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
 import SwapSheet from '../components/SwapSheet.jsx'
@@ -7,11 +7,11 @@ import FoodTracker from '../components/FoodTracker.jsx'
 import { byId } from '../data/exercises.js'
 import { minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dateKey, dayIdx } from '../lib/calc.js'
-import { isTimed, timedSeconds, overloadHint, deloadDue, inDeload } from '../lib/coach.js'
-import { suggestKg, effectiveWeight, LOAD_UNIT } from '../lib/loads.js'
+import { isTimed, timedSeconds, overloadHint, regressHint, deloadDue, inDeload } from '../lib/coach.js'
+import { suggestKg, personalFactor, LOAD_UNIT } from '../lib/loads.js'
 import { bmi as calcBmi } from '../lib/calc.js'
 import {
-  useStore, editDay, patchSet, finishDay, skipDay, toggleWarm, startDeload, endDeload,
+  useStore, editDay, setLoadAdj, patchSet, finishDay, skipDay, toggleWarm, startDeload, endDeload,
   setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak,
 } from '../store.js'
 
@@ -25,15 +25,18 @@ function weekOf(d) {
   return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return x })
 }
 
-function ExRow({ it, ex, log, date, logs, profile, open, onToggle, onInfo, onSwap, startTimer, rest }) {
+function ExRow({ it, ex, log, date, logs, profile, pf, open, onToggle, onInfo, onSwap, startTimer, rest }) {
   const sets = setsOf(log, it)
   const done = sets.filter((s) => s.done).length
   const timed = isTimed(it.reps)
   const secs = timed ? timedSeconds(it.reps) : null
-  const up = timed ? null : overloadHint(logs, it.id, it.reps, date)
-  const hint = up ? String(up.kg) : lastKg(logs, it.id, date)
+  const up = timed ? null : overloadHint(logs, it.id, it.reps, date, 2.5, ex?.eq)
+  const down = timed || up ? null : regressHint(logs, it.id, it.reps, date, ex?.eq)
+  const hint = up ? String(up.kg) : down ? String(down.kg) : lastKg(logs, it.id, date)
   // ยังไม่เคยบันทึกท่านี้ → แนะนำน้ำหนักเริ่มต้นจากตัวผู้ใช้ (เป็น placeholder เท่านั้น ไม่เติมค่าให้เอง)
-  const sug = !hint && !timed ? suggestKg(ex, profile) : null
+  const adj = profile.loadAdj || 1 // ผู้ใช้กด "หนักไป/เบาไป"
+  const fa = Math.round(pf * adj * 100) / 100 // ตัวคูณรวม: ที่ยกจริง × ที่ผู้ใช้ปรับ
+  const sug = !hint && !timed ? suggestKg(ex, profile, fa) : null
 
   const tick = (i) => {
     const s = sets[i]
@@ -59,9 +62,10 @@ function ExRow({ it, ex, log, date, logs, profile, open, onToggle, onInfo, onSwa
           {sug && (
             <p className="nudge">
               <Lightbulb aria-hidden="true" />
-              <span>ครั้งแรกของท่านี้ แนะนำเริ่มที่ <b>~{sug.kg} กก. {LOAD_UNIT[sug.tag]}</b> (ตามน้ำหนัก {profile.weight} กก. · BMI {calcBmi(profile.weight, profile.height).toFixed(1)}{profile.sex === 'f' ? ' · หญิง' : ''}{profile.age ? ` · ${profile.age} ปี` : ''}) เลือกน้ำหนักที่ทำได้ {String(it.reps).match(/\d+(?:–\d+)?/)?.[0]} ครั้งโดยยังเหลือแรงอีก 2–3 ครั้ง {sug.tag === 'b' && 'บาร์เปล่ามาตรฐานหนัก ~20 กก. ถ้าหนักไป เริ่มด้วยดัมเบลก่อน '}ถ้าเบาหรือหนักไปให้ปรับเอง ท่าที่ไม่คุ้นให้เริ่มเบากว่านี้</span>
+              <span>ครั้งแรกของท่านี้ เริ่มเบาๆ ที่ <b>~{sug.kg} กก. {LOAD_UNIT[sug.tag]}</b> ({fa !== 1 ? `ปรับ ${fa < 1 ? 'ลง' : 'ขึ้น'} ${Math.abs(Math.round((1 - fa) * 100))}% ตามที่คุณยกจริง/ที่ปรับไว้` : `ประมาณจากน้ำหนัก ${profile.weight} กก. · BMI ${calcBmi(profile.weight, profile.height).toFixed(1)}`}) เป็นแค่จุดเริ่ม <b>ถ้าหนักให้ลดได้เลย</b> เลือกน้ำหนักที่ทำได้ {String(it.reps).match(/\d+(?:–\d+)?/)?.[0]} ครั้งด้วยท่าที่สวย และยังเหลือแรงอีกราว 3 ครั้ง (ประเมินแม่นเมื่อเหลือไม่เกิน ~3–5 ครั้ง) {sug.tag === 'b' && 'บาร์เปล่ามาตรฐานหนัก ~20 กก. ถ้าหนักไป เริ่มด้วยดัมเบลก่อน '}หยุดทันทีถ้าเจ็บแปลบ ชา หรือเวียนหัว<span className="row wrap" style={{ gap: '0.5rem', marginTop: '0.5rem' }}><button type="button" className="btn sm" onClick={() => setLoadAdj(adj * 0.85)}>หนักไป ลดให้</button><button type="button" className="btn sm" onClick={() => setLoadAdj(adj * 1.15)}>เบาไป เพิ่มให้</button></span></span>
             </p>
           )}
+          {down && <p className="nudge"><TrendingDown aria-hidden="true" /><span>ครั้งก่อนที่ {down.was} กก. ทำได้ไม่ถึงช่วงเป้าหมาย — ครั้งนี้ลองลดเป็น <b>{down.kg} กก.</b> แล้วเน้นท่าสวยและครบจำนวนครั้ง ค่อยเพิ่มทีหลัง จะได้ผลกว่าฝืนหนัก</span></p>}
           {!timed && <div className="set-labels"><span>เซ็ต</span><span>น้ำหนัก (กก.)</span><span>ครั้ง</span><span /></div>}
           {sets.map((s, i) => (
             <div className="set" key={i}>
@@ -98,6 +102,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
   const log = logs[date]
   const items = itemsFor(s, date)
   const { total, done, pct } = progressOf(s, date)
+  const pf = useMemo(() => personalFactor(logs, byId, profile), [logs, profile])
   const [open, setOpen] = useState(null)
   const [info, setInfo] = useState(null)
   const [swap, setSwap] = useState(null) // ท่าที่กำลังหาท่าแทน
@@ -193,7 +198,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
             <ExRow
               key={`${it.id}-${n}`} it={it} ex={byId[it.id]} log={log} logs={logs} date={date}
               open={open === n} onToggle={() => setOpen(open === n ? null : n)} onInfo={() => setInfo(byId[it.id])} onSwap={() => setSwap(byId[it.id])}
-              startTimer={startTimer} rest={profile.rest} profile={profile}
+              startTimer={startTimer} rest={profile.rest} profile={profile} pf={pf}
             />
           ))}
         </ul>

@@ -5,7 +5,7 @@ import { generatePlan, PPL } from '../src/data/plan.js'
 import { byId, EXERCISES } from '../src/data/exercises.js'
 import { FOODS, ADDONS, addonById, suggestAddons, matchName } from '../src/data/foods.js'
 import { unitInfo, fmtAmt } from '../src/lib/units.js'
-import { suggestKg, effectiveWeight, hasSuggestion } from '../src/lib/loads.js'
+import { suggestKg, effectiveWeight, hasSuggestion, personalFactor } from '../src/lib/loads.js'
 import { EXERCISES as ALL_EX } from '../src/data/exercises.js'
 import { mealTargets } from '../src/lib/calc.js'
 import { addFood, removeFood, updateFood, getState, addMyFood, removeMyFood } from '../src/store.js'
@@ -13,7 +13,7 @@ import { gramsPerUnit, gramInfo, addonGw } from '../src/data/grams.js'
 import { merge } from '../src/lib/merge.js'
 import { RECIPES, INGREDIENTS } from '../src/data/recipes.js'
 import { sodiumOf, addonSodium, itemSodium } from '../src/data/sodium.js'
-import { overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
+import { loadStep, regressHint, overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
 
 // BMI ตามตัวอย่างใน Artifact (67.95 กก. / 168 ซม.)
 const b = bmi(67.95, 168)
@@ -57,6 +57,24 @@ for (const goal of ['lose', 'fit', 'muscle'])
           }
           if (d.kind === 'train') assert.ok(d.items.length >= 3, `thin ${d.name} ${tag}: ${d.items.length}`)
         }
+        { // ข้อกำหนดจากงานวิจัย: กลุ่มใหญ่ฝึก ≥2 วัน/สัปดาห์ (ACSM 2009; Schoenfeld 2016) · เป้ากล้ามเนื้อ ≥9 เซ็ต/สัปดาห์/กลุ่มใหญ่ (Schoenfeld 2017: ยิ่งเซ็ตมากยิ่งโต)
+          const wkSets = {}, wkDays = {}
+          for (const d of p.days) {
+            const seen = new Set()
+            for (const i of d.items) {
+              if (/วินาที|นาที|เมตร/.test(String(i.reps))) continue
+              const g = byId[i.id].g
+              wkSets[g] = (wkSets[g] || 0) + i.sets; seen.add(g)
+            }
+            for (const g of seen) wkDays[g] = (wkDays[g] || 0) + 1
+          }
+          for (const g of ['chest', 'back', 'legs']) {
+            assert.ok(wkDays[g] >= 2, `${g} only ${wkDays[g] || 0} day(s)/wk in ${tag}`)
+            if (goal === 'muscle') assert.ok(wkSets[g] >= 9, `${g} only ${wkSets[g]} sets/wk in ${tag}`)
+          }
+          if (goal === 'muscle' && level >= 2) assert.ok(wkSets.shoulder >= 6, `shoulder only ${wkSets.shoulder || 0} sets/wk in ${tag}`)
+          if (level === 1) for (const d of p.days) for (const i of d.items) assert.ok(!['barbell-deadlift', 'good-morning', 'power-clean', 'rack-pull', 'barbell-row', 'bent-db-row'].includes(i.id), `risky lift ${i.id} for beginner ${tag}`)
+        }
         n++
       }
 console.log(`ok — ${n} plans, ${EXERCISES.length} exercises`)
@@ -90,6 +108,22 @@ assert.equal(goalProgress([{ kg: 55 }], 0), null)
 // ── เหรียญ
 const med = achievements({ finished: 10, streak: 3, hasPR: true, lost: -2.4, measured: 0, waterDays: 0 })
 assert.deepEqual(med.filter((m) => m.done).map((m) => m.id), ['first', 'ten', 'pr', 'lost'])
+// ก้าวน้ำหนักตามอุปกรณ์ + ถอยเมื่อยกไม่ไหวจริง
+assert.equal(loadStep('machine', 45), 2.5, 'machine/cable <50 kg: 2.5 (≤10% step, ACSM 2–10%)')
+assert.deepEqual([loadStep('db', 5), loadStep('db', 12), loadStep('db', 35), loadStep('bb', 40), loadStep('bb', 100), loadStep('machine', 20), loadStep('machine', 60), loadStep('bw', 0)], [1, 2, 2.5, 2.5, 5, 2.5, 5, 2.5])
+{
+  const mk = (kg, reps) => ({ '2026-11-01': { sets: { x: reps.map((r) => ({ done: true, kg, reps: r })) } } })
+  // ครบช่วงเป้าหมาย (3×10–12 ทำ 12,12,12 ที่ ดัมเบล 5 กก.) → +1 กก. ไม่ใช่ +2.5
+  assert.deepEqual(overloadHint(mk(5, [12, 12, 12]), 'x', '10–12', '2026-11-02', 2.5, 'db'), { kg: 6, was: 5 })
+  assert.deepEqual(overloadHint(mk(60, [8, 8, 8]), 'x', '6–8', '2026-11-02', 2.5, 'machine'), { kg: 65, was: 60 })
+  assert.deepEqual(overloadHint(mk(20, [12, 12, 12]), 'x', '10–12', '2026-11-02'), { kg: 22.5, was: 20 }, 'legacy default step kept')
+  // ยกไม่ถึงช่วง (เป้า 10–12 ทำได้ 7,6,6 ที่ 10 กก.) → ลด ~10% ปัดตามอุปกรณ์
+  assert.deepEqual(regressHint(mk(10, [7, 6, 6]), 'x', '10–12', '2026-11-02', 'db'), { kg: 9, was: 10 })
+  assert.equal(regressHint(mk(10, [9, 9, 9]), 'x', '10–12', '2026-11-02', 'db'), null, 'only 1 under range is fine')
+  assert.equal(regressHint(mk(10, [7]), 'x', '10–12', '2026-11-02', 'db'), null, 'one set is not enough')
+  assert.equal(regressHint(mk(10, [3, 3, 3]), 'x', '30 วินาที', '2026-11-02', 'db'), null, 'timed ignored')
+  assert.equal(regressHint(mk(10, [7, 6, 6]), 'x', '10–12', '2026-11-01', 'db'), null, 'only earlier days')
+}
 console.log('ok — coach logic')
 
 // ── โภชนาการรายบุคคล
@@ -245,8 +279,9 @@ console.log('ok — nutrition')
   assert.ok(Object.keys(byId2).length && ALL_EX.every((e) => !hasSuggestion(e.id) || ['db', 'bb', 'cable', 'machine'].includes(e.eq)), 'suggestion only for weighted equipment')
   const man = { weight: 70, height: 175, sex: 'm', age: 28, level: 1 }
   const S = (id, p = man) => suggestKg(byId2[id], p).kg
-  assert.ok(S('barbell-squat') >= 25 && S('barbell-squat') <= 45, 'squat ~35 for 70kg male: ' + S('barbell-squat'))
-  assert.ok(S('barbell-bench') <= S('barbell-squat') + 5 && S('db-curl') <= 8 && S('lat-pulldown') >= 25, 'sane ratios')
+  assert.ok(S('barbell-squat') >= 20 && S('barbell-squat') <= 40, 'squat ~25 (conservative) for 70kg male: ' + S('barbell-squat'))
+  assert.ok(S('barbell-bench') <= S('barbell-squat') + 5 && S('db-curl') <= 8 && S('lat-pulldown') >= 20, 'sane ratios')
+  assert.ok(S('bent-db-row') < S('db-row') && S('db-rdl') <= S('db-row'), 'hinge/back-loaded lifts start lighter than supported rows')
   assert.ok(S('db-bench-press', { ...man, sex: 'f' }) < S('db-bench-press'), 'female lighter')
   assert.ok(S('db-bench-press', { ...man, age: 68 }) < S('db-bench-press'), 'senior lighter')
   assert.ok(S('db-bench-press', { ...man, age: 15 }) < S('db-bench-press'), 'teen lighter')
@@ -255,6 +290,17 @@ console.log('ok — nutrition')
   assert.ok(S('leg-press', big) > S('leg-press') && S('leg-press', big) < S('leg-press') * 130 / 70, 'heavy BMI: heavier but not proportional to fat')
   assert.ok(effectiveWeight(120, 172) < 120 && effectiveWeight(60, 175) === 60 && effectiveWeight(40, 170) < 40, 'effective weight')
   assert.equal(suggestKg(byId2['pushup'], man), null)
+  // ตัวคูณส่วนตัว: ยกเบากว่าที่แนะนำ → คำแนะนำท่าอื่นเบาลงตาม · ข้อมูลไม่พอ/ไม่มี = 1 · ถูกจำกัดช่วง
+  const lg = (kgById) => ({ '2026-11-01': { sets: Object.fromEntries(Object.entries(kgById).map(([id, kg]) => [id, [{ done: true, kg, reps: 10 }]])) } })
+  const half = (id) => Math.round(suggestKg(byId2[id], man).kg / 2)
+  assert.equal(personalFactor({}, byId2, man), 1)
+  assert.equal(personalFactor(lg({ 'db-curl': suggestKg(byId2['db-curl'], man).kg }), byId2, man), 1, 'one exercise is not enough')
+  const f = personalFactor(lg({ 'db-bench-press': half('db-bench-press'), 'lat-pulldown': half('lat-pulldown'), 'leg-press': half('leg-press') }), byId2, man)
+  assert.ok(f >= 0.4 && f <= 0.6, 'lifting half -> factor ~0.5: ' + f)
+  assert.ok(suggestKg(byId2['db-shoulder-press'], man, f).kg < suggestKg(byId2['db-shoulder-press'], man).kg, 'suggestion scaled by personal factor')
+  assert.equal(personalFactor(lg({ 'db-bench-press': 200, 'lat-pulldown': 300 }), byId2, man), 1.3, 'capped high')
+  assert.equal(personalFactor(lg({ 'db-bench-press': 1, 'lat-pulldown': 1 }), byId2, man), 0.4, 'capped low')
+  assert.equal(personalFactor({ '2026-11-01': { sets: { 'db-curl': [{ done: false, kg: 99 }], 'lat-pulldown': [{ done: true, kg: 0 }] } } }, byId2, man), 1, 'undone / zero-kg sets ignored')
   assert.equal(suggestKg(byId2['barbell-squat'], null), null)
   for (const p of [man, { weight: 42, height: 165, sex: 'f', age: 22, level: 1 }, { weight: 120, height: 172, sex: 'm', age: 35, level: 3 }, { weight: 58, height: 155, sex: 'f', age: 75, level: 1 }]) {
     for (const e of weighted) {
