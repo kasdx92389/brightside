@@ -44,6 +44,7 @@ function QtyPicker({ food, slot, setSlot, onAdd }) {
   const u = unitInfo(food)
   const [val, setVal] = useState(String(u.base))
   const [ex, setEx] = useState({}) // id เครื่องปรุง → จำนวน
+  const [xq, setXq] = useState('')
   const a = clamp(Number(val) || 0, 0, u.max)
   const q = a / u.base
   const move = (d) => setVal(String(r2(clamp(a + d * u.step, u.min, u.max))))
@@ -51,6 +52,8 @@ function QtyPicker({ food, slot, setSlot, onAdd }) {
   const X = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0)
   const setX = (id, n) => setEx((cur) => { const o = { ...cur }; if (n <= 0) delete o[id]; else o[id] = Math.min(n, 20); return o })
   const toggle = (ad) => setX(ad.id, ex[ad.id] ? 0 : addonStep(ad))
+  const xkey = xq.trim().toLowerCase()
+  const found = xkey ? ADDONS.filter((ad) => ad.n.toLowerCase().includes(xkey)) : null
   const tips = suggestAddons(food).map((id) => addonById[id]).filter(Boolean)
   const submit = () => onAdd(q, r2(a), u.word, picked.map(([ad, n]) => ({ n: ad.n, a: n, w: ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n) })))
   const chip = (ad) => <button key={ad.id} type="button" className="chip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}>{ad.n} <span className="chip-k">{ad.k}/{ad.u}</span></button>
@@ -85,13 +88,23 @@ function QtyPicker({ food, slot, setSlot, onAdd }) {
               ))}
             </ul>
           )}
-          {tips.length > 0 && <div className="col" style={{ gap: '0.375rem' }}><span className="xs mute">มักใส่กับเมนูนี้</span><div className="xchips">{tips.map(chip)}</div></div>}
-          {ADDON_GROUPS.map(([k, label]) => (
-            <div key={k} className="col" style={{ gap: '0.375rem' }}>
-              <span className="xs mute">{label}</span>
-              <div className="xchips">{ADDONS.filter((ad) => ad.cat === k).map(chip)}</div>
-            </div>
-          ))}
+          <div className="search">
+            <Search aria-hidden="true" />
+            <input className="input" type="search" placeholder="ค้นหาเครื่องปรุง เช่น แม็กกี้ น้ำมันงา" aria-label="ค้นหาเครื่องปรุง" value={xq} onChange={(e) => setXq(e.target.value)} />
+          </div>
+          {found ? (
+            found.length ? <div className="xchips">{found.map(chip)}</div> : <p className="mute sm">ไม่พบเครื่องปรุงนี้ ใช้ "กรอกเอง" ในหน้าหลักเพื่อใส่ค่าจากฉลากได้</p>
+          ) : (
+            <>
+              {tips.length > 0 && <div className="col" style={{ gap: '0.375rem' }}><span className="xs mute">มักใส่กับเมนูนี้</span><div className="xchips">{tips.map(chip)}</div></div>}
+              {ADDON_GROUPS.map(([k, label]) => (
+                <div key={k} className="col" style={{ gap: '0.375rem' }}>
+                  <span className="xs mute">{label}</span>
+                  <div className="xchips">{ADDONS.filter((ad) => ad.cat === k).map(chip)}</div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </details>
 
