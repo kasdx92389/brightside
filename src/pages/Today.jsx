@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Droplets, Beef, Zap, Minus, Plus, Moon, SkipForward, HeartPulse, ArrowLeftRight } from 'lucide-react'
+import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Moon, SkipForward, HeartPulse, ArrowLeftRight } from 'lucide-react'
 import { Ring, Media } from '../components/ui.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
 import SwapSheet from '../components/SwapSheet.jsx'
+import FoodTracker from '../components/FoodTracker.jsx'
 import { byId } from '../data/exercises.js'
 import { minutesOf, itemLabel, parseRx } from '../data/plan.js'
-import { DAY_TH, DAY_SHORT, dateKey, dayIdx, targets } from '../lib/calc.js'
+import { DAY_TH, DAY_SHORT, dateKey, dayIdx } from '../lib/calc.js'
 import { isTimed, timedSeconds, overloadHint, deloadDue, inDeload } from '../lib/coach.js'
 import {
-  useStore, editDay, patchSet, finishDay, skipDay, toggleWarm, patchFood, startDeload, endDeload,
-  setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak, waterGoal,
+  useStore, editDay, patchSet, finishDay, skipDay, toggleWarm, startDeload, endDeload,
+  setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak,
 } from '../store.js'
 
 const firstInt = (s) => String(s).match(/\d+/)?.[0] || ''
@@ -77,44 +78,6 @@ function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, onSwap, startT
   )
 }
 
-function Meter({ icon: Icon, label, value, goal, unit, quick = [], onChange, step }) {
-  const pct = Math.min(value / goal, 1)
-  return (
-    <div className="meter">
-      <div className="row between">
-        <span className="row" style={{ gap: '0.5rem' }}><Icon aria-hidden="true" /><b>{label}</b></span>
-        <span className="mute sm"><b className="num" style={{ fontSize: '1.25rem', color: pct >= 1 ? 'var(--ok-fg)' : 'var(--text)' }}>{value.toLocaleString()}</b> / {goal.toLocaleString()} {unit}</span>
-      </div>
-      <div className="bar" role="progressbar" aria-label={label} aria-valuemin="0" aria-valuemax={goal} aria-valuenow={value}><i style={{ width: `${pct * 100}%` }} className={pct >= 1 ? 'full' : ''} /></div>
-      <div className="row wrap" style={{ gap: '0.5rem' }}>
-        <button className="btn sm" aria-label={`ลด ${label}`} onClick={() => onChange(Math.max(0, value - step))}><Minus /></button>
-        {quick.map((q) => <button key={q} className="btn sm" onClick={() => onChange(value + q)}><Plus /> {q}</button>)}
-      </div>
-    </div>
-  )
-}
-
-function Nutrition({ date, log, profile }) {
-  const t = targets(profile)
-  const f = log?.food || {}
-  const wg = waterGoal(profile)
-  const proteinGoal = Math.round((t.protein[0] + t.protein[1]) / 2)
-  return (
-    <details className="card nutri">
-      <summary className="row between" style={{ cursor: 'pointer', minHeight: 44 }}>
-        <h2>อาหารและน้ำวันนี้</h2>
-        <span className="mute sm">{f.water || 0}/{wg} แก้ว · {f.protein || 0} g · {(f.kcal || 0).toLocaleString()} kcal</span>
-      </summary>
-      <div className="col" style={{ gap: '1.25rem', marginTop: '1rem' }}>
-        <Meter icon={Droplets} label="น้ำดื่ม" value={f.water || 0} goal={wg} unit="แก้ว (250 มล.)" quick={[1, 2]} step={1} onChange={(v) => patchFood(date, { water: v })} />
-        <Meter icon={Beef} label="โปรตีน" value={f.protein || 0} goal={proteinGoal} unit="g" quick={[10, 25]} step={10} onChange={(v) => patchFood(date, { protein: v })} />
-        <Meter icon={Zap} label="พลังงาน" value={f.kcal || 0} goal={t.kcal} unit="kcal" quick={[100, 300, 500]} step={100} onChange={(v) => patchFood(date, { kcal: v })} />
-        <p className="hint">เป้าโปรตีน {t.protein[0]}–{t.protein[1]} g · ตัวอย่างอาหารแต่ละมื้ออยู่ที่หน้า “ฉัน”</p>
-      </div>
-    </details>
-  )
-}
-
 export default function Today({ date: dateParam, startTimer, toast }) {
   const s = useStore()
   const { profile, plan, logs } = s
@@ -147,7 +110,8 @@ export default function Today({ date: dateParam, startTimer, toast }) {
   }
 
   return (
-    <div className="page">
+    <div className="page today">
+      <div className="tcol">
       <header className="page-head">
         <div>
           <span className="eyebrow">{isToday ? 'วันนี้' : DAY_TH[di]} · {longDate(d)}</span>
@@ -249,7 +213,8 @@ export default function Today({ date: dateParam, startTimer, toast }) {
         </div>
       ))}
 
-      <Nutrition date={date} log={log} profile={profile} />
+      </div>
+      <FoodTracker date={date} log={log} logs={logs} profile={profile} train={day.kind === 'train' && !skipped} isToday={isToday} toast={toast} />
       <ExerciseSheet ex={info} onClose={() => setInfo(null)} toast={toast} />
       <SwapSheet ex={swap} level={profile.level} taken={day.items.map((i) => i.id)} onClose={() => setSwap(null)} onPick={doSwap} />
     </div>

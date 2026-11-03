@@ -18,10 +18,10 @@ function Generator({ open, onClose, toast }) {
   const preview = generatePlan(o)
   return (
     <Sheet open={open} onClose={onClose} title="ออกแบบโปรแกรมให้ฉัน">
-      <Choice label="เป้าหมาย" value={o.goal} onChange={(goal) => set({ goal })} options={GOALS} />
-      <Choice label="ระดับ" value={o.level} onChange={(level) => set({ level })} options={LEVELS} />
+      <div className="field"><span>เป้าหมาย</span><Choice label="เป้าหมาย" value={o.goal} onChange={(goal) => set({ goal })} options={GOALS} /></div>
+      <div className="field"><span>ระดับประสบการณ์</span><Choice label="ระดับ" value={o.level} onChange={(level) => set({ level })} options={LEVELS} /></div>
       <div className="field"><span>วันที่ฝึกต่อสัปดาห์</span><Seg label="วัน" value={o.days} onChange={(days) => set({ days })} options={[[3, '3'], [4, '4'], [5, '5'], [6, '6']]} /></div>
-      <Choice label="อุปกรณ์" value={o.equip} onChange={(equip) => set({ equip })} options={EQUIPS} />
+      <div className="field"><span>อุปกรณ์ที่มี</span><Choice label="อุปกรณ์" value={o.equip} onChange={(equip) => set({ equip })} options={EQUIPS} /></div>
       <section className="col" aria-live="polite" style={{ gap: '0.5rem' }}>
         <h3>ตัวอย่างโปรแกรม · {preview.name}</h3>
         {preview.days.map((d, i) => (

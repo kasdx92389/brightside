@@ -57,6 +57,7 @@ export default function ExerciseSheet({ ex, onClose, toast }) {
         <div><b>ห้ามพลาด</b><p>{ex.avoid}</p></div>
       </div>
 
+      {ex.g === 'stretch' && <p className="hint">ยืดหลังฝึกหรือวันพัก ค้างจนรู้สึกตึงแต่ไม่เจ็บ · ก่อนยกหนักให้วอร์มอัพแบบเคลื่อนไหวแทน เพราะการยืดค้างนานก่อนยกอาจลดแรงชั่วคราว</p>}
       {ex.db && (
         <div className="frames">
           {['จุดเริ่มต้น', 'จุดสิ้นสุด'].map((c, n) => (
@@ -67,7 +68,7 @@ export default function ExerciseSheet({ ex, onClose, toast }) {
 
       {pb && <p className="row"><Trophy style={{ color: 'var(--warn-fg)' }} aria-hidden="true" /> น้ำหนักสูงสุดของคุณ <b className="num" style={{ fontSize: '1.25rem' }}>{pb.kg} กก. × {pb.reps || '–'}</b></p>}
 
-      <a className="btn block" href={ex.video} target="_blank" rel="noreferrer"><ExternalLink /> ดูวิดีโอสอน</a>
+      <a className="btn block" href={ex.video} target="_blank" rel="noreferrer"><ExternalLink /> ค้นหาวิดีโอสอนบน YouTube</a>
 
       {plan && (
         <div className="row pair">

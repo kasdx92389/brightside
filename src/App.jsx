@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { CalendarCheck, ClipboardList, LibraryBig, TrendingUp, UserRound, Plus, X } from 'lucide-react'
 import { useStore, saveFailed } from './store.js'
 import Onboarding from './pages/Onboarding.jsx'
@@ -49,7 +49,8 @@ export default function App() {
   const [rest, setRest] = useState(null) // { end, label }
   const [msg, setMsg] = useState('')
 
-  const toast = useCallback((m) => { setMsg(m); setTimeout(() => setMsg(''), 2200) }, [])
+  const toastT = useRef(0)
+  const toast = useCallback((m) => { setMsg(m); clearTimeout(toastT.current); toastT.current = setTimeout(() => setMsg(''), 2200) }, [])
   const startTimer = useCallback((sec, label = 'พัก') => setRest({ end: Date.now() + sec * 1000, label }), [])
   const stopRest = useCallback(() => setRest(null), [])
   useEffect(() => { if (!param) scrollTo(0, 0) }, [page, param])

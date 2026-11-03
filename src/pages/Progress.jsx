@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Flame, CalendarCheck, Scale, Trophy, Plus, Activity, Ruler, Medal, Lock, Target } from 'lucide-react'
 import { byId } from '../data/exercises.js'
-import { bmi, bmiBand, dateKey, dayIdx } from '../lib/calc.js'
+import { bmi, bmiBand, dateKey, dayIdx, targets } from '../lib/calc.js'
 import { addDays, daysBetween, goalProgress } from '../lib/coach.js'
 import {
-  useStore, addWeight, addMeasure, dayStatus, streak, personalBests, volumeOf, setsDone, weekStats, getAchievements, finishedDates,
+  useStore, addWeight, addMeasure, dayStatus, streak, personalBests, volumeOf, setsDone, weekStats, getAchievements, finishedDates, waterGoal,
 } from '../store.js'
 import { Field } from '../components/ui.jsx'
 
@@ -41,7 +41,7 @@ function Delta({ now, before, unit, good }) {
   const d = Math.round((now - before) * 10) / 10
   if (!before && !now) return <span className="mute">–</span>
   const tone = d === 0 ? 'mute' : (good === 'up' ? d > 0 : d < 0) ? 'tone-good' : 'tone-warn'
-  return <span className={tone}>{sign(d)}{unit}</span>
+  return <span className={tone}>{d > 0 ? '+' : ''}{d.toLocaleString()}{unit}</span>
 }
 
 export default function Progress() {
@@ -65,6 +65,13 @@ export default function Progress() {
   const gp = goalProgress(weights, profile.target)
   const medals = getAchievements(s)
   const lastMeasure = measures.at(-1)
+  // โภชนาการ 7 วันล่าสุด: เฉลี่ยเฉพาะวันที่บันทึกอาหาร
+  const nt = targets(profile)
+  const week7 = Array.from({ length: 7 }, (_, i) => logs[addDays(today, -i)]?.food || {})
+  const fed = week7.filter((x) => x.kcal > 0)
+  const avg = (k) => (fed.length ? Math.round(fed.reduce((n, x) => n + (Number(x[k]) || 0), 0) / fed.length) : 0)
+  const waterOk = week7.filter((x) => (x.water || 0) >= waterGoal(profile)).length
+  const NROWS = [['พลังงาน (kcal)', 'kcal', nt.kcal], ['โปรตีน (g)', 'protein', Math.round((nt.protein[0] + nt.protein[1]) / 2)], ['คาร์บ (g)', 'carb', nt.carb], ['ไขมัน (g)', 'fat', nt.fat]]
 
   const submitWeight = (e) => {
     e.preventDefault()
@@ -81,7 +88,7 @@ export default function Progress() {
   }
 
   return (
-    <div className="page">
+    <div className="page dash">
       <header className="page-head"><div><span className="eyebrow">ภาพรวม</span><h1>ความคืบหน้า</h1></div></header>
 
       <div className="stats">
@@ -91,9 +98,10 @@ export default function Progress() {
         <div className="stat"><Scale aria-hidden="true" /><span className="num">{b.toFixed(1)}</span><small>BMI · {bmiBand(b).label}</small></div>
       </div>
 
+      <div className="masonry">
       <section className="card col">
         <h2>สัปดาห์นี้เทียบสัปดาห์ก่อน</h2>
-        <table className="tbl"><thead><tr><th></th><th>สัปดาห์นี้</th><th>ก่อนหน้า</th><th>ต่าง</th></tr></thead><tbody>
+        <table className="tbl grid"><thead><tr><th></th><th>สัปดาห์นี้</th><th>ก่อนหน้า</th><th>ต่าง</th></tr></thead><tbody>
           <tr><td>ครั้งที่ฝึก</td><td className="num">{wk.workouts}</td><td className="num">{prev.workouts}</td><td><Delta now={wk.workouts} before={prev.workouts} unit="" good="up" /></td></tr>
           <tr><td>เซ็ตรวม</td><td className="num">{wk.sets}</td><td className="num">{prev.sets}</td><td><Delta now={wk.sets} before={prev.sets} unit="" good="up" /></td></tr>
           <tr><td>ปริมาณ (กก.)</td><td className="num">{wk.volume.toLocaleString()}</td><td className="num">{prev.volume.toLocaleString()}</td><td><Delta now={wk.volume} before={prev.volume} unit="" good="up" /></td></tr>
@@ -122,7 +130,7 @@ export default function Progress() {
         <h2 className="row"><Ruler aria-hidden="true" /> สัดส่วนร่างกาย</h2>
         {(!lastMeasure || daysBetween(lastMeasure.date, today) >= 14) && <p className="nudge">{lastMeasure ? 'ครบ 2 สัปดาห์แล้ว วัดอีกครั้งได้เลย' : 'วัดรอบเอว (ระดับสะดือ) และรอบแขนทุก 2 สัปดาห์ — ถ้ารอบเอวลดแต่น้ำหนักนิ่ง แปลว่าไขมันลดและกล้ามเนื้อเพิ่ม'}</p>}
         {measures.length > 0 && (
-          <table className="tbl"><thead><tr><th>วันที่</th>{MEASURES.map(([, t]) => <th key={t} style={{ textAlign: 'right' }}>{t.replace('รอบ', '')}</th>)}</tr></thead><tbody>
+          <table className="tbl grid"><thead><tr><th>วันที่</th>{MEASURES.map(([, t]) => <th key={t} style={{ textAlign: 'right' }}>{t.replace('รอบ', '')}</th>)}</tr></thead><tbody>
             {measures.slice(-4).reverse().map((r, i, arr) => {
               const p = arr[i + 1]
               return <tr key={r.date}><td>{short(r.date)}</td>{MEASURES.map(([k]) => <td key={k} style={{ textAlign: 'right' }}>{r[k] ?? '–'}{p && r[k] != null && p[k] != null && r[k] !== p[k] && <small className={r[k] < p[k] ? 'tone-good' : 'tone-warn'}><br />{sign(Math.round((r[k] - p[k]) * 10) / 10)}</small>}</td>)}</tr>
@@ -140,6 +148,19 @@ export default function Progress() {
           {merr && <small className="err" role="alert">{merr}</small>}
           <button className="btn block"><Plus /> บันทึกสัดส่วน</button>
         </form>
+      </section>
+
+      <section className="card col">
+        <h2>อาหารและน้ำ 7 วันล่าสุด</h2>
+        {fed.length ? (
+          <table className="tbl grid"><thead><tr><th></th><th>เฉลี่ย</th><th>เป้า</th><th>ต่าง</th></tr></thead><tbody>
+            {NROWS.map(([label, k, goal]) => {
+              const v = avg(k), pct = goal ? (v - goal) / goal : 0
+              return <tr key={k}><td>{label}</td><td className="num">{v.toLocaleString()}</td><td className="num">{goal.toLocaleString()}</td><td className={Math.abs(pct) <= 0.1 ? 'tone-good' : 'tone-warn'}>{sign(Math.round(pct * 100))}%</td></tr>
+            })}
+          </tbody></table>
+        ) : <p className="mute">ยังไม่มีบันทึกอาหาร ไปหน้า “วันนี้” แล้วแตะเลือกอาหารที่กิน ระบบจะสรุปให้ว่าตรงเป้าหรือไม่</p>}
+        <p className="hint">บันทึกอาหาร {fed.length}/7 วัน · ดื่มน้ำถึงเป้า {waterOk}/7 วัน{fed.length > 0 && fed.length < 3 ? ' · บันทึกอย่างน้อย 3 วันเพื่อให้ค่าเฉลี่ยแม่นขึ้น' : ''} · ตรงเป้า = ต่างไม่เกิน ±10%</p>
       </section>
 
       <section className="card col">
@@ -187,6 +208,7 @@ export default function Progress() {
           </tbody></table>
         ) : <p className="mute">ยังไม่มีบันทึก — ไปหน้า “วันนี้” แล้วเริ่มเซ็ตแรกได้เลย</p>}
       </section>
+      </div>
     </div>
   )
 }

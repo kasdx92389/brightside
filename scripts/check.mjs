@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 import { bmi, bmiBand, targets, healthyRange } from '../src/lib/calc.js'
 import { generatePlan, PPL } from '../src/data/plan.js'
 import { byId, EXERCISES } from '../src/data/exercises.js'
+import { FOODS } from '../src/data/foods.js'
+import { mealTargets } from '../src/lib/calc.js'
+import { addFood, removeFood, getState } from '../src/store.js'
 import { overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
 
 // BMI ตามตัวอย่างใน Artifact (67.95 กก. / 168 ซม.)
@@ -21,9 +24,12 @@ assert.ok(tg.protein[0] >= 105 && tg.protein[1] <= 140, `protein ${tg.protein}`)
 // ตารางเดิม + ข้อมูลท่าครบ
 for (const d of PPL.days) for (const it of d.items) assert.ok(byId[it.id], `PPL missing ${it.id}`)
 for (const e of EXERCISES) assert.ok(e.gain && e.how.length >= 3 && e.avoid, `incomplete ${e.id}`)
+import { existsSync } from 'node:fs'
+for (const e of EXERCISES) if (e.db) for (const n of [0, 1]) assert.ok(existsSync(new URL(`../public/ex/${e.db}/${n}.jpg`, import.meta.url)), `missing image ${e.id}`)
+for (const e of EXERCISES) assert.equal(new URL(e.video).origin, 'https://www.youtube.com', `video source ${e.id}`) // วิดีโอแหล่งเดียว
 
 // ตัวออกแบบ: ทุกชุดตัวเลือกต้องได้ท่าถูกต้อง ไม่ซ้ำในวัน และใช้เฉพาะอุปกรณ์/ระดับที่เลือก
-const ALLOW = { gym: ['bw', 'db', 'bb', 'cable', 'machine'], db: ['bw', 'db'], home: ['bw'] }
+const ALLOW = { gym: ['bw', 'db', 'bb', 'cable', 'machine', 'band'], db: ['bw', 'db', 'band'], home: ['bw'] }
 let n = 0
 for (const goal of ['lose', 'fit', 'muscle'])
   for (const level of [1, 2, 3])
@@ -78,3 +84,41 @@ assert.equal(goalProgress([{ kg: 55 }], 0), null)
 const med = achievements({ finished: 10, streak: 3, hasPR: true, lost: -2.4, measured: 0, waterDays: 0 })
 assert.deepEqual(med.filter((m) => m.done).map((m) => m.id), ['first', 'ten', 'pr', 'lost'])
 console.log('ok — coach logic')
+
+// ── โภชนาการรายบุคคล
+const P = { sex: 'm', age: 30, weight: 70, height: 170, days: 4 } // BMI 24.2
+const T = (o) => targets({ ...P, goal: 'fit', ...o })
+for (const goal of ['lose', 'fit', 'muscle']) for (const sex of ['m', 'f']) for (const age of [15, 30, 65]) for (const w of [45, 70, 120]) {
+  const t = T({ goal, sex, age, weight: w })
+  const kcalFromMacros = t.protein.reduce((a, b) => a + b) / 2 * 4 + t.carb * 4 + t.fat * 9
+  assert.ok(Math.abs(kcalFromMacros - t.kcal) / t.kcal < 0.12, `macro sum ${goal}/${sex}/${age}/${w}: ${kcalFromMacros} vs ${t.kcal}`)
+  assert.ok(t.water >= 1.6 && t.waterTrain === Math.round((t.water + 0.5) * 10) / 10 && t.glasses(true) > t.glasses(false))
+  if (age < 18) assert.ok(t.delta >= 0, 'teen no deficit')
+  if (age >= 60) assert.ok(t.delta >= -300, 'senior deficit cap')
+}
+assert.ok(T({ goal: 'lose', weight: 50 }).delta > 0, 'BMI<18.5 ต้องเกินดุลแม้เลือกลดไขมัน') // BMI 17.3
+assert.equal(T({ goal: 'lose', weight: 90 }).delta, -500) // BMI 31
+assert.equal(T({ goal: 'muscle', weight: 90 }).delta, 0) // BMI ≥ 25 recomp
+assert.ok(T({ goal: 'muscle', weight: 60 }).delta > 0) // BMI 20.8
+assert.ok(T({ goal: 'fit', weight: 90 }).protein[1] < 90 * 1.8, 'BMI สูงคิดโปรตีนจากน้ำหนักปรับ')
+const mt = mealTargets(T({ goal: 'fit' }))
+assert.equal(mt.length, 4)
+assert.ok(Math.abs(mt.reduce((n, m) => n + m.kcal, 0) - T({ goal: 'fit' }).kcal) <= 40)
+
+// ฐานข้อมูลอาหาร: พลังงานต้องสอดคล้องกับสารอาหาร (±15% หรือ ±25 kcal) และไม่มีรหัสซ้ำ
+assert.equal(new Set(FOODS.map((f) => f.id)).size, FOODS.length, 'food id dup')
+for (const f of FOODS) {
+  const est = f.p * 4 + f.c * 4 + f.f * 9
+  assert.ok(Math.abs(est - f.k) <= Math.max(25, f.k * 0.15), `food ${f.n}: kcal ${f.k} vs macros ${est}`)
+}
+
+// บันทึก/ลบอาหาร: ยอดรวมต้องกลับมาเท่าเดิม
+const D = '2026-11-03'
+addFood(D, { id: 'x', n: 'x', q: 1, s: 0, k: 300, p: 20, c: 30, f: 10 })
+addFood(D, { id: 'y', n: 'y', q: 2, s: 1, k: 100, p: 5.5, c: 10, f: 1 })
+assert.deepEqual([getState().logs[D].food.kcal, getState().logs[D].food.protein, getState().logs[D].food.items.length], [400, 25.5, 2])
+removeFood(D, 0)
+assert.deepEqual([getState().logs[D].food.kcal, getState().logs[D].food.protein, getState().logs[D].food.items.length], [100, 5.5, 1])
+removeFood(D, 5) // index เกิน ไม่ทำอะไร
+assert.equal(getState().logs[D].food.items.length, 1)
+console.log('ok — nutrition')

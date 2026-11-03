@@ -22,32 +22,32 @@ export const PPL = {
 }
 
 // ───────── ตัวออกแบบโปรแกรมอัตโนมัติ ─────────
-const ALLOWED = { gym: ['bw', 'db', 'bb', 'cable', 'machine'], db: ['bw', 'db'], home: ['bw'] }
+const ALLOWED = { gym: ['bw', 'db', 'bb', 'cable', 'machine', 'band'], db: ['bw', 'db', 'band'], home: ['bw'] }
 
 // รายการเรียงตามความเหมาะสม — ตัวกรองอุปกรณ์/ระดับจะตัดที่ใช้ไม่ได้ออกเอง
 const POOL = {
-  chestPress: ['barbell-bench', 'db-bench-press', 'machine-chest-press', 'pushup', 'incline-pushup'],
-  chestIncline: ['incline-db-press', 'cable-crossover', 'db-fly', 'incline-pushup', 'pushup'],
-  shoulderPress: ['barbell-ohp', 'arnold-press', 'db-shoulder-press'],
-  lateral: ['lateral-raise', 'reverse-fly', 'face-pull'],
-  triceps: ['triceps-pushdown', 'close-grip-bench', 'overhead-triceps-ext', 'bench-dips', 'skullcrusher'],
-  vertPull: ['pullup', 'lat-pulldown', 'vbar-pulldown', 'chinup', 'inverted-row'],
-  horizPull: ['barbell-row', 'seated-cable-row', 'db-row', 'inverted-row', 'superman'],
-  rearDelt: ['face-pull', 'reverse-fly', 'superman'],
-  biceps: ['barbell-curl', 'db-curl', 'hammer-curl'],
-  squat: ['barbell-squat', 'goblet-squat', 'leg-press', 'bodyweight-squat'],
-  hinge: ['rdl-barbell', 'db-rdl', 'glute-bridge', 'hyperextension'],
-  lunge: ['db-lunge', 'db-step-up', 'jump-squat', 'bodyweight-squat'],
-  legIso: ['leg-curl', 'leg-extension', 'glute-bridge'],
-  calves: ['calf-raise', 'jump-squat'],
-  glute: ['hip-thrust', 'glute-bridge'],
-  core1: ['crunch', 'cable-crunch', 'reverse-crunch', 'dead-bug'],
-  core2: ['plank', 'lying-leg-raise', 'side-bridge', 'russian-twist'],
-  proPush: ['plyo-pushup', 'push-press', 'handstand-pushup', 'single-arm-pushup'],
-  proPull: ['muscle-up', 'barbell-deadlift'],
-  proLegs: ['front-squat', 'sumo-deadlift', 'pistol-squat', 'overhead-squat'],
-  proFull: ['power-clean', 'kettlebell-swing', 'farmers-walk'],
-  cardio: ['treadmill-intervals', 'rope-jumping', 'brisk-walk'],
+  chestPress: ['barbell-bench', 'db-bench-press', 'machine-chest-press', 'pushup', 'incline-pushup', 'smith-bench', 'wide-pushup'],
+  chestIncline: ['incline-db-press', 'cable-crossover', 'db-fly', 'incline-pushup', 'pushup', 'incline-barbell-bench', 'pec-deck', 'incline-db-fly', 'decline-pushup'],
+  shoulderPress: ['barbell-ohp', 'arnold-press', 'db-shoulder-press', 'machine-shoulder-press'],
+  lateral: ['lateral-raise', 'reverse-fly', 'face-pull', 'cable-lateral-raise'],
+  triceps: ['triceps-pushdown', 'close-grip-bench', 'overhead-triceps-ext', 'bench-dips', 'skullcrusher', 'cable-overhead-triceps', 'dips-triceps', 'triceps-kickback'],
+  vertPull: ['pullup', 'lat-pulldown', 'vbar-pulldown', 'chinup', 'inverted-row', 'reverse-grip-pulldown', 'assisted-pullup'],
+  horizPull: ['barbell-row', 'seated-cable-row', 'db-row', 'inverted-row', 'superman', 'machine-row', 'tbar-row', 'bent-db-row', 'cable-one-arm-row'],
+  rearDelt: ['face-pull', 'reverse-fly', 'superman', 'reverse-pec-deck', 'band-pull-apart'],
+  biceps: ['barbell-curl', 'db-curl', 'hammer-curl', 'ez-bar-curl', 'cable-curl', 'incline-db-curl', 'preacher-curl', 'concentration-curl'],
+  squat: ['barbell-squat', 'goblet-squat', 'leg-press', 'bodyweight-squat', 'db-squat', 'smith-squat', 'hack-squat', 'chair-squat'],
+  hinge: ['rdl-barbell', 'db-rdl', 'glute-bridge', 'hyperextension', 'trap-bar-deadlift', 'cable-pull-through'],
+  lunge: ['db-lunge', 'db-step-up', 'jump-squat', 'bodyweight-squat', 'reverse-lunge', 'split-squat', 'walking-lunge'],
+  legIso: ['leg-curl', 'leg-extension', 'glute-bridge', 'seated-leg-curl', 'hip-abduction', 'hip-adduction'],
+  calves: ['calf-raise', 'jump-squat', 'seated-calf-raise'],
+  glute: ['hip-thrust', 'glute-bridge', 'cable-kickback', 'monster-walk'],
+  core1: ['crunch', 'cable-crunch', 'reverse-crunch', 'dead-bug', 'bicycle-crunch', 'sit-up', 'machine-crunch', 'oblique-crunch'],
+  core2: ['plank', 'lying-leg-raise', 'side-bridge', 'russian-twist', 'pallof-press', 'bird-dog', 'woodchop'],
+  proPush: ['plyo-pushup', 'push-press', 'handstand-pushup', 'single-arm-pushup', 'ring-dips'],
+  proPull: ['muscle-up', 'barbell-deadlift', 'deficit-deadlift'],
+  proLegs: ['front-squat', 'sumo-deadlift', 'pistol-squat', 'overhead-squat', 'glute-ham-raise'],
+  proFull: ['power-clean', 'kettlebell-swing', 'farmers-walk', 'thruster', 'kb-snatch'],
+  cardio: ['treadmill-intervals', 'rope-jumping', 'brisk-walk', 'stationary-bike', 'elliptical', 'incline-walk'],
 }
 
 // มือใหม่ในฟิตเนส: เครื่องที่มีรางนำก่อนฟรีเวท (คุมท่าง่ายกว่า) — ที่เหลือใช้ลำดับ POOL เดิม

@@ -76,8 +76,23 @@ export const toggleWarm = (date) => patchLog(date, (log) => ({ ...log, warm: !lo
 export const patchFood = (date, patch) =>
   patchLog(date, (log) => {
     const f = { ...log.food, ...patch }
-    for (const k in f) f[k] = Math.max(0, Number(f[k]) || 0)
+    for (const k in f) if (k !== 'items') f[k] = Math.max(0, Number(f[k]) || 0)
     return { ...log, food: f }
+  })
+
+// บันทึกอาหารทีละรายการ: item = { id, n ชื่อ, q ปริมาณ, s มื้อ(0-3), k kcal, p โปรตีน, c คาร์บ, f ไขมัน } · ยอดรวมของวันอัปเดตตาม
+const FOOD_KEYS = { k: 'kcal', p: 'protein', c: 'carb', f: 'fat' }
+const bump = (food, it, sign) => {
+  const o = { ...food }
+  for (const [k, key] of Object.entries(FOOD_KEYS)) o[key] = Math.max(0, Math.round(((Number(food[key]) || 0) + sign * (Number(it[k]) || 0)) * 10) / 10)
+  return o
+}
+export const addFood = (date, it) =>
+  patchLog(date, (log) => ({ ...log, food: { ...bump(log.food || {}, it, 1), items: [...(log.food?.items || []), it] } }))
+export const removeFood = (date, i) =>
+  patchLog(date, (log) => {
+    const items = log.food?.items || []
+    return items[i] ? { ...log, food: { ...bump(log.food, items[i], -1), items: items.filter((_, n) => n !== i) } } : log
   })
 
 export const startDeload = () =>
@@ -87,7 +102,12 @@ export const startDeload = () =>
   })
 export const endDeload = () => update((s) => ({ ...s, deloadUntil: null, plan: { ...s.plan, startedAt: dateKey() } }))
 
-export const importData = (json) => update(() => ({ ...EMPTY, ...JSON.parse(json) }))
+export const importData = (json) => update(() => {
+  const d = JSON.parse(json)
+  // กันไฟล์ผิดชนิด (JSON ที่ไม่ใช่ข้อมูลสำรอง) ล้างข้อมูลทั้งหมดโดยไม่รู้ตัว
+  if (!d?.profile || !d.plan?.days || typeof d.logs !== 'object' || !Array.isArray(d.weights)) throw new Error('not a backup')
+  return { ...EMPTY, ...d }
+})
 export const resetAll = () => update(() => ({ ...EMPTY, createdAt: dateKey() }))
 
 // ───── selectors / helpers ─────
@@ -158,7 +178,7 @@ export function streak(s) {
 
 export const finishedDates = (s) => Object.entries(s.logs).filter(([, l]) => l.finished).map(([d]) => d).sort()
 
-export const waterGoal = (p) => Math.ceil(targets(p).water * 4) // แก้ว 250 มล.
+export const waterGoal = (p, train = false) => targets(p).glasses(train) // แก้ว 250 มล. (วันฝึก +500 มล.)
 
 export function getAchievements(s) {
   const w = s.weights
