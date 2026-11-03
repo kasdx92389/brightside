@@ -488,11 +488,11 @@ button.eat-b:active { background: var(--s3); }
 .qbtn svg { width: 22px; height: 22px; }
 .presets { display: grid; gap: 0.5rem; }
 .presets .chip { justify-content: center; padding: 0; min-width: 0; font-variant-numeric: tabular-nums; }
-.qty-in { display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 56px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); padding: 0 0.75rem; }
+.qty-in { display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: 56px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); padding: 0 0.75rem 0 2.25rem; }
 .qty-in:focus-within { border-color: var(--pri); box-shadow: 0 0 0 3px var(--pri-soft); }
-.qty-in input { width: 4.5ch; min-width: 0; flex: none; border: 0; outline: 0; background: none; text-align: right; font: 600 2rem/1 var(--num); font-variant-numeric: tabular-nums; align-self: center; -moz-appearance: textfield; appearance: textfield; }
+.qty-in input { flex: 1 1 0; width: 0; min-width: 0; border: 0; outline: 0; background: none; text-align: right; font: 600 2rem/1 var(--num); font-variant-numeric: tabular-nums; align-self: center; -moz-appearance: textfield; appearance: textfield; }
 .qty-in input::-webkit-outer-spin-button, .qty-in input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.qty-in span { color: var(--mute); font-weight: 500; white-space: nowrap; }
+.qty-in span { flex: none; color: var(--mute); font-weight: 500; white-space: nowrap; }
 @media (max-width: 359px) { .qty-row { grid-template-columns: 48px minmax(0, 1fr) 48px; } .qbtn { width: 48px; height: 48px; } .qty-in input { font-size: 1.75rem; } }
 .xbox { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.25rem 0.75rem 0.75rem; background: var(--s1); }
 .xbox > summary { min-height: 44px; display: flex; align-items: center; gap: 0.5rem; }
@@ -514,7 +514,7 @@ button.eat-b:active { background: var(--s3); }
 .xbtn svg { width: 18px; height: 18px; }
 .xk { display: block; }
 .xval { display: flex; align-items: baseline; justify-content: center; gap: 0.25rem; min-width: 5.5rem; font-size: 0.875rem; }
-.xin { width: 4.2ch; min-width: 0; border: 0; outline: 0; background: none; text-align: right; font: 600 1.125rem/1.2 var(--num); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.xin { width: 7ch; min-width: 0; border: 0; outline: 0; background: none; text-align: right; font: 600 1.125rem/1.2 var(--num); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
 .xin::-webkit-outer-spin-button, .xin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .xin:focus { box-shadow: 0 2px 0 var(--pri); }
 .xunit { min-height: 32px; padding: 0; color: var(--pri-fg); font-size: 0.8125rem; text-decoration: underline; text-underline-offset: 2px; }
