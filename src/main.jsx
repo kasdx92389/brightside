@@ -5,6 +5,7 @@ import './styles.css'
 import { applyTextScale } from './lib/ui.js'
 
 applyTextScale()
+try { sessionStorage.removeItem('bs-reload') } catch { /* ไม่มี sessionStorage */ }
 
 class Boundary extends Component {
   state = { err: null }
