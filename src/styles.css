@@ -37,6 +37,7 @@ html { -webkit-text-size-adjust: 100%; }
 }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-track { margin-block: 12px; } /* ไม่ให้แถบไหลเลยมุมโค้งของการ์ดที่เลื่อนได้ */
 ::-webkit-scrollbar-thumb {
   min-height: 44px; min-width: 44px; border: 3px solid transparent; border-radius: 999px;
   background: rgba(71, 85, 105, 0.55) padding-box; transition: background-color 0.18s;
