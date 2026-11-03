@@ -31,6 +31,18 @@
 
 * { box-sizing: border-box; margin: 0; }
 html { -webkit-text-size-adjust: 100%; }
+/* แถบเลื่อน: เรียวมน สีเทาอมน้ำเงิน → ส้มเมื่อชี้/ลาก (Firefox ใช้แบบบางสีเดียว) */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(71, 85, 105, 0.55) transparent; }
+}
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  min-height: 44px; min-width: 44px; border: 3px solid transparent; border-radius: 999px;
+  background: rgba(71, 85, 105, 0.55) padding-box; transition: background-color 0.18s;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--pri) padding-box; }
+::-webkit-scrollbar-thumb:active { background: var(--pri-fg) padding-box; }
 body {
   background: var(--bg);
   color: var(--text);
