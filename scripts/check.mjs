@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { bmi, bmiBand, targets, healthyRange } from '../src/lib/calc.js'
 import { generatePlan, PPL } from '../src/data/plan.js'
 import { byId, EXERCISES } from '../src/data/exercises.js'
-import { FOODS } from '../src/data/foods.js'
+import { FOODS, ADDONS, addonById, suggestAddons } from '../src/data/foods.js'
+import { unitInfo, fmtAmt } from '../src/lib/units.js'
 import { mealTargets } from '../src/lib/calc.js'
 import { addFood, removeFood, getState } from '../src/store.js'
 import { overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
@@ -111,6 +112,25 @@ for (const f of FOODS.filter((x) => !x.alc)) {
   const est = f.p * 4 + f.c * 4 + f.f * 9
   assert.ok(Math.abs(est - f.k) <= Math.max(25, f.k * 0.15), `food ${f.n}: kcal ${f.k} vs macros ${est}`)
 }
+
+// ตัวเลือกปริมาณตามหน่วย: นับเป็นฟอง · ครึ่งชาม · กรัม · หน่วยฐานหลายชิ้น · ชุดผสม
+{
+  const U = (n) => unitInfo(FOODS.find((f) => f.n === n))
+  assert.deepEqual([U('ไข่ต้ม').word, U('ไข่ต้ม').step, U('ไข่ต้ม').min], ['ฟอง', 1, 1])
+  assert.ok(U('ไข่ต้ม').presets.includes(3))
+  assert.deepEqual([U('ข้าวต้มไก่').word, U('ข้าวต้มไก่').step], ['ชาม', 0.5])
+  assert.ok(U('อกไก่ต้ม/ย่าง').kind === 'g' && U('อกไก่ต้ม/ย่าง').presets.includes(150))
+  assert.deepEqual(U('นักเก็ตไก่').presets, [1, 4, 8, 12]) // 4 ชิ้น/หน่วย
+  assert.equal(U('ข้าวเหนียวหมูปิ้ง').word, 'ชุด')
+  assert.equal(fmtAmt(1.5), '1½')
+  for (const f of FOODS) { const u = unitInfo(f); assert.ok(u.base > 0 && u.min > 0 && u.presets.length && u.presets.every((p) => p >= u.min && p <= u.max), `unit ${f.n} (${f.u})`) }
+}
+
+// เครื่องปรุง: id ไม่ซ้ำ · kcal สอดคล้องสูตร · คำแนะนำชี้ไปที่ id ที่มีอยู่จริง
+assert.equal(new Set(ADDONS.map((x) => x.id)).size, ADDONS.length, 'addon id dup')
+for (const x of ADDONS) assert.ok(Math.abs(x.p * 4 + x.c * 4 + x.f * 9 - x.k) <= Math.max(25, x.k * 0.15), `addon ${x.n}`)
+for (const f of FOODS) for (const id of suggestAddons(f)) assert.ok(addonById[id], `addon tip ${id}`)
+assert.equal(addonById['oil-น้ำมันรำข้าว'].k, 120)
 
 // บันทึก/ลบอาหาร: ยอดรวมต้องกลับมาเท่าเดิม
 const D = '2026-11-03'

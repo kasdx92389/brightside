@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb } from 'lucide-react'
-import { Seg } from './ui.jsx'
-import { FOODS, FOOD_CATS, foodById } from '../data/foods.js'
+import { Seg, Sheet } from './ui.jsx'
+import { unitInfo, fmtAmt } from '../lib/units.js'
+import { FOODS, FOOD_CATS, foodById, ADDON_GROUPS, ADDONS, addonById, addonStep, suggestAddons } from '../data/foods.js'
 import { targets, MEAL_SLOTS } from '../lib/calc.js'
 import { addDays } from '../lib/coach.js'
 import { patchFood, addFood, removeFood } from '../store.js'
 
 const ML = 250 // 1 แก้ว
-const PORTIONS = [[0.5, '½'], [1, '1'], [1.5, '1½'], [2, '2']]
 const SLOTS = MEAL_SLOTS.map(([n], i) => [i, n])
 const r1 = (v) => Math.round(v * 10) / 10
+const r2 = (v) => Math.round(v * 100) / 100
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
 const slotNow = () => { const h = new Date().getHours(); return h < 10 ? 0 : h < 15 ? 1 : h < 18 ? 3 : 2 }
 
@@ -37,6 +38,73 @@ function Bar({ icon: Icon, label, value, goal, unit, over }) {
   )
 }
 
+/** เลือกปริมาณตามหน่วยของอาหารนั้น: ฟอง/ชิ้น = จำนวนเต็ม · ชาม/จาน = ครึ่งได้ · g/มล. = ใส่น้ำหนัก
+ *  "เพิ่มรายละเอียด" = เลือกเครื่องปรุง/น้ำมันเพิ่มเองพร้อมจำนวนช้อน (ไม่เพิ่มให้อัตโนมัติ) */
+function QtyPicker({ food, slot, setSlot, onAdd }) {
+  const u = unitInfo(food)
+  const [val, setVal] = useState(String(u.base))
+  const [ex, setEx] = useState({}) // id เครื่องปรุง → จำนวน
+  const a = clamp(Number(val) || 0, 0, u.max)
+  const q = a / u.base
+  const move = (d) => setVal(String(r2(clamp(a + d * u.step, u.min, u.max))))
+  const picked = Object.entries(ex).map(([id, n]) => [addonById[id], n])
+  const X = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0)
+  const setX = (id, n) => setEx((cur) => { const o = { ...cur }; if (n <= 0) delete o[id]; else o[id] = Math.min(n, 20); return o })
+  const toggle = (ad) => setX(ad.id, ex[ad.id] ? 0 : addonStep(ad))
+  const tips = suggestAddons(food).map((id) => addonById[id]).filter(Boolean)
+  const submit = () => onAdd(q, r2(a), u.word, picked.map(([ad, n]) => ({ n: ad.n, a: n, w: ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n) })))
+  const chip = (ad) => <button key={ad.id} type="button" className="chip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}>{ad.n} <span className="chip-k">{ad.k}/{ad.u}</span></button>
+  return (
+    <>
+      <p className="mute sm">{food.u} = <b className="num">{food.k}</b> kcal · P {food.p} · C {food.c} · F {food.f}</p>
+      <div className="qty-row">
+        <button className="icon-btn qbtn" aria-label="ลดจำนวน" disabled={a <= u.min} onClick={() => move(-1)}><Minus /></button>
+        <label className="qty-in">
+          <input type="number" inputMode="decimal" min={u.min} max={u.max} step={u.step} value={val} aria-label={`จำนวน (${u.word})`} onChange={(e) => setVal(e.target.value)} onBlur={() => a < u.min && setVal(String(u.min))} />
+          <span>{u.word}</span>
+        </label>
+        <button className="icon-btn qbtn" aria-label="เพิ่มจำนวน" disabled={a >= u.max} onClick={() => move(1)}><Plus /></button>
+      </div>
+      <div className="presets" role="group" aria-label="จำนวนที่เลือกบ่อย">
+        {u.presets.map((p) => <button key={p} type="button" className="chip" aria-pressed={a === p} onClick={() => setVal(String(p))}>{fmtAmt(p)}</button>)}
+      </div>
+
+      <details className="xbox" open={picked.length > 0 ? true : undefined}>
+        <summary className="more">เพิ่มรายละเอียด (น้ำมัน เครื่องปรุง ส่วนเสริม){picked.length > 0 && <b className="xcount">{picked.length}</b>}</summary>
+        <div className="col" style={{ gap: '0.75rem', marginTop: '0.625rem' }}>
+          <p className="hint">ค่าของเมนูทอด/ผัดรวมน้ำมันที่ใช้ตามปกติไว้แล้ว เลือกเพิ่มเฉพาะส่วนที่ใส่เกินหรือเครื่องปรุงที่ปรุงเพิ่มเอง</p>
+          {picked.length > 0 && (
+            <ul className="xlist" aria-label="เครื่องปรุงที่เลือก">
+              {picked.map(([ad, n]) => (
+                <li key={ad.id}>
+                  <span className="grow"><b>{ad.n}</b><span className="mute xs xk">+{Math.round(ad.k * n)} kcal</span></span>
+                  <button type="button" className="icon-btn xbtn" aria-label={`ลด ${ad.n}`} onClick={() => setX(ad.id, n - addonStep(ad))}><Minus /></button>
+                  <span className="xval"><b className="num">{fmtAmt(n)}</b> {ad.u}</span>
+                  <button type="button" className="icon-btn xbtn" aria-label={`เพิ่ม ${ad.n}`} onClick={() => setX(ad.id, n + addonStep(ad))}><Plus /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {tips.length > 0 && <div className="col" style={{ gap: '0.375rem' }}><span className="xs mute">มักใส่กับเมนูนี้</span><div className="xchips">{tips.map(chip)}</div></div>}
+          {ADDON_GROUPS.map(([k, label]) => (
+            <div key={k} className="col" style={{ gap: '0.375rem' }}>
+              <span className="xs mute">{label}</span>
+              <div className="xchips">{ADDONS.filter((ad) => ad.cat === k).map(chip)}</div>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <div className="qtot" aria-live="polite">
+        <span><b className="num">{Math.round(food.k * q + X('k'))}</b> kcal{picked.length > 0 && <span className="mute xs"> (เครื่องปรุง +{Math.round(X('k'))})</span>}</span>
+        <span className="mute xs">โปรตีน {r1(food.p * q + X('p'))} g · คาร์บ {r1(food.c * q + X('c'))} g · ไขมัน {r1(food.f * q + X('f'))} g</span>
+      </div>
+      <Seg label="มื้อ" value={slot} onChange={setSlot} options={SLOTS} />
+      <button className="btn pri qadd" disabled={a < u.min} onClick={submit}><Plus /> เพิ่ม {fmtAmt(a)} {u.word}{picked.length > 0 && ` + ${picked.length} เครื่องปรุง`}</button>
+    </>
+  )
+}
+
 /** อาหารและน้ำของวัน: เป้ารายบุคคล · แตะเพิ่มอาหารได้เลย · แนะนำสิ่งที่ควรกินต่อ */
 export default function FoodTracker({ date, log, logs, profile, train, isToday, toast }) {
   const t = targets(profile)
@@ -46,7 +114,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const wg = t.glasses(train)
   const proteinGoal = Math.round((t.protein[0] + t.protein[1]) / 2)
   const [slot, setSlot] = useState(slotNow)
-  const [portion, setPortion] = useState(1)
+  const [sel, setSel] = useState(null) // อาหารที่กำลังเลือกปริมาณ
   const [cat, setCat] = useState('recent')
   const [q, setQ] = useState('')
   const [custom, setCustom] = useState({ n: '', k: '', p: '', c: '', f: '' })
@@ -60,9 +128,10 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const key = q.trim().toLowerCase()
   const shown = key ? FOODS.filter((x) => x.n.toLowerCase().includes(key)) : tab === 'recent' ? recents : FOODS.filter((x) => x.cat === tab)
 
-  const add = (food, qty = portion) => {
-    addFood(date, { id: food.id, n: food.n, q: qty, s: slot, k: Math.round(food.k * qty), p: r1(food.p * qty), c: r1(food.c * qty), f: r1(food.f * qty) })
-    toast?.(`เพิ่ม ${food.n}${qty !== 1 ? ` ×${qty}` : ''} แล้ว`)
+  const add = (food, qty = 1, amt, word, extras = []) => {
+    const X = (k) => extras.reduce((n, x) => n + x[k], 0)
+    addFood(date, { id: food.id, n: food.n, q: qty, s: slot, k: Math.round(food.k * qty + X('k')), p: r1(food.p * qty + X('p')), c: r1(food.c * qty + X('c')), f: r1(food.f * qty + X('f')), ...(word && { a: amt, w: word }), ...(extras.length && { x: extras }) })
+    toast?.(`เพิ่ม ${food.n}${word ? ` ${fmtAmt(amt)} ${word}` : qty !== 1 ? ` ×${qty}` : ''}${extras.length ? ` + ${extras.length} เครื่องปรุง` : ''} แล้ว`)
   }
   const addCustom = () => {
     const v = (s) => Math.max(0, Number(s) || 0)
@@ -117,10 +186,6 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
         <section className="col" style={{ gap: '0.625rem' }}>
           <h3>เพิ่มอาหาร</h3>
           <Seg label="มื้อ" value={slot} onChange={setSlot} options={SLOTS} />
-          <div className="row" style={{ gap: '0.5rem' }}>
-            <span className="mute sm" style={{ flex: 'none' }}>ปริมาณ ×</span>
-            <div className="grow"><Seg label="ปริมาณ" value={portion} onChange={setPortion} options={PORTIONS} /></div>
-          </div>
           <div className="search">
             <Search aria-hidden="true" />
             <input className="input" type="search" placeholder="ค้นหาอาหาร เช่น ข้าวมันไก่" aria-label="ค้นหาอาหาร" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -133,10 +198,10 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
           )}
           <div className="foods">
             {shown.map((x) => (
-              <button key={x.id} className="food" onClick={() => add(x)}>
+              <button key={x.id} className="food" onClick={() => setSel(x)}>
                 <b>{x.n}</b>
                 <span className="mute xs">{x.u}</span>
-                <span className="xs"><b className="num">{Math.round(x.k * portion)}</b> kcal · P {r1(x.p * portion)}</span>
+                <span className="xs"><b className="num">{x.k}</b> kcal · P {x.p}</span>
               </button>
             ))}
             {!shown.length && <p className="mute sm">ไม่พบอาหาร ลองกรอกเองด้านล่าง</p>}
@@ -155,27 +220,44 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
           </details>
         </section>
 
-        <section className="col" style={{ gap: '0.5rem' }}>
-          <h3>กินไปแล้ววันนี้</h3>
+        <section className="col eaten" style={{ gap: '0.625rem' }}>
+          <div className="row between">
+            <h3>กินไปแล้ววันนี้</h3>
+            {items.length > 0 && <span className="mute xs"><b className="num" style={{ fontSize: '1.125rem', color: 'var(--text)' }}>{items.reduce((n, it) => n + it.k, 0).toLocaleString()}</b> kcal · {items.length} รายการ</span>}
+          </div>
           {items.length === 0 && <p className="mute sm">ยังไม่ได้บันทึก แตะอาหารด้านบนเพื่อเพิ่ม</p>}
           {MEAL_SLOTS.map(([name], si) => {
             const rows = items.map((it, i) => [it, i]).filter(([it]) => (it.s ?? 1) === si)
             if (!rows.length) return null
+            const sum = (k) => r1(rows.reduce((n, [it]) => n + (it[k] || 0), 0))
             return (
-              <div key={name} className="col" style={{ gap: '0.25rem' }}>
-                <div className="row between"><b>{name}</b><span className="mute xs">{rows.reduce((n, [it]) => n + it.k, 0)} kcal · P {r1(rows.reduce((n, [it]) => n + it.p, 0))} g</span></div>
-                {rows.map(([it, i]) => (
-                  <div key={i} className="row between sm" style={{ minHeight: 40 }}>
-                    <span className="grow">{it.n}{it.q !== 1 && <span className="mute"> ×{it.q}</span>}</span>
-                    <span className="mute xs">{it.k} kcal · P {it.p}</span>
-                    <button className="icon-btn" aria-label={`ลบ ${it.n}`} onClick={() => removeFood(date, i)}><X /></button>
-                  </div>
-                ))}
+              <div key={name} className="meal">
+                <div className="meal-h">
+                  <b>{name}</b>
+                  <span className="mute xs"><b className="num meal-k">{Math.round(sum('k')).toLocaleString()}</b> kcal</span>
+                </div>
+                <div className="meal-m xs mute">โปรตีน {sum('p')} g · คาร์บ {sum('c')} g · ไขมัน {sum('f')} g</div>
+                <ul className="meal-l">
+                  {rows.map(([it, i]) => (
+                    <li key={i} className="eat">
+                      <div className="grow">
+                        <div className="eat-n"><span>{it.n}</span>{it.q !== 1 && <span className="qty">{it.w ? `${fmtAmt(it.a)} ${it.w}` : `×${it.q}`}</span>}</div>
+                        <div className="mute xs">{it.q === 1 && foodById[it.id]?.u ? foodById[it.id].u + ' · ' : ''}P {it.p} · C {it.c ?? 0} · F {it.f ?? 0}</div>
+                        {it.x?.length > 0 && <div className="eat-x2 xs">+ {it.x.map((x) => `${x.n} ${fmtAmt(x.a)} ${x.w}`).join(' · ')}</div>}
+                      </div>
+                      <span className="num eat-k">{it.k.toLocaleString()}<small> kcal</small></span>
+                      <button className="icon-btn eat-x" aria-label={`ลบ ${it.n}`} onClick={() => removeFood(date, i)}><X /></button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )
           })}
           <p className="hint">ค่าสารอาหารเป็นค่าประมาณต่อหน่วยบริโภคทั่วไป ปริมาณจริงต่างกันได้ ใช้เป็นแนวทาง ไม่ต้องแม่นทุกกรัม ขอให้ใกล้เคียงและสม่ำเสมอ</p>
         </section>
+        <Sheet open={!!sel} onClose={() => setSel(null)} title={sel?.n || ''}>
+          {sel && <QtyPicker key={sel.id} food={sel} slot={slot} setSlot={setSlot} onAdd={(q, a, w, x) => { add(sel, q, a, w, x); setSel(null) }} />}
+        </Sheet>
       </div>
     </details>
   )
