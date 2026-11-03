@@ -7,6 +7,8 @@ import FoodTracker from '../components/FoodTracker.jsx'
 import { byId } from '../data/exercises.js'
 import { minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dateKey, dayIdx } from '../lib/calc.js'
+import { MoodCard } from '../components/Mood.jsx'
+import SafetyBanner from '../components/SafetyBanner.jsx'
 import { isTimed, timedSeconds, overloadHint, regressHint, deloadDue, inDeload } from '../lib/coach.js'
 import { suggestKg, personalFactor, LOAD_UNIT } from '../lib/loads.js'
 import { bmi as calcBmi } from '../lib/calc.js'
@@ -23,6 +25,23 @@ function weekOf(d) {
   const mon = new Date(d)
   mon.setDate(d.getDate() - dayIdx(d))
   return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return x })
+}
+
+/** อาการที่ต้องหยุดออกกำลังกายและขอความช่วยเหลือ — ตั้งครรภ์เพิ่มสัญญาณเตือนตาม ACOG CO 804 */
+function StopSigns({ profile }) {
+  const preg = !!profile.preg && profile.preg !== 'none'
+  return (
+    <details className="card stop">
+      <summary className="row" style={{ cursor: 'pointer', minHeight: 44, gap: '0.5rem' }}><HeartPulse aria-hidden="true" style={{ color: 'var(--bad-fg)' }} /> <b>อาการที่ต้องหยุดทันที</b></summary>
+      <ul className="sm" style={{ paddingLeft: '1.1rem', marginTop: '0.5rem' }}>
+        <li>เจ็บหรือแน่นหน้าอก ใจสั่นผิดจังหวะ</li>
+        <li>เวียนหัวจะเป็นลม หน้ามืด หายใจไม่ทันผิดปกติ</li>
+        <li>เจ็บแปลบที่ข้อ หลัง หรือคอ ชา หรือร้าวลงแขนขา</li>
+        {preg && <li><b>ตั้งครรภ์:</b> เลือดออกทางช่องคลอด น้ำเดิน ปวดท้อง/มดลูกบีบเป็นจังหวะ ปวดหัวมาก น่องบวมหรือปวด หายใจลำบากก่อนออกแรง ลูกดิ้นน้อยลง</li>}
+      </ul>
+      <p className="hint">หยุดพักก่อน ถ้าไม่หายหรือรุนแรง ไปพบแพทย์หรือโทร 1669 {preg && '· อ้างอิง ACOG Committee Opinion 804'}</p>
+    </details>
+  )
 }
 
 function ExRow({ it, ex, log, date, logs, profile, pf, open, onToggle, onInfo, onSwap, startTimer, rest }) {
@@ -148,6 +167,8 @@ export default function Today({ date: dateParam, startTimer, toast }) {
         })}
       </nav>
 
+      <SafetyBanner toast={toast} />
+
       {isToday && deloadDue(s, date) && (
         <section className="card col banner">
           <h2 className="row"><HeartPulse aria-hidden="true" /> ถึงเวลาสัปดาห์เบา</h2>
@@ -192,6 +213,8 @@ export default function Today({ date: dateParam, startTimer, toast }) {
         </label>
       )}
 
+      {train && !skipped && <StopSigns profile={profile} />}
+
       {train && !skipped && (
         <ul className="list" aria-label="รายการท่า">
           {items.map((it, n) => (
@@ -227,6 +250,8 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           {done === 0 && <button className="btn ghost block" onClick={() => { skipDay(date); toast('ข้ามวันนี้ พักเพิ่มได้เลย') }}><Moon /> เหนื่อยหรือไม่ว่าง — ข้ามวันนี้</button>}
         </div>
       ))}
+
+      <MoodCard date={date} today={dateKey()} log={log} logs={logs} />
 
       </div>
       <FoodTracker date={date} log={log} logs={logs} profile={profile} train={day.kind === 'train' && !skipped} isToday={isToday} toast={toast} />

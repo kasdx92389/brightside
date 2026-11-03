@@ -1,6 +1,8 @@
 import { Flame, Zap, Dumbbell, Sprout, Gauge, Trophy, Building2, Home, PersonStanding } from 'lucide-react'
 import { Field, Seg, Choice, BmiGauge } from './ui.jsx'
 import { bmi, healthyRange } from '../lib/calc.js'
+import { RANGE } from '../lib/validate.js'
+import { SCREEN, PREG, planLimits } from '../lib/safety.js'
 
 export const GOALS = [
   ['lose', 'ลดไขมัน ลดพุง', 'เวทเทรนนิ่ง + คาร์ดิโอ ขาดดุลแคลอรี่เล็กน้อย', Flame],
@@ -18,23 +20,49 @@ export const EQUIPS = [
   ['home', 'ตัวเปล่า', 'ไม่ใช้อุปกรณ์เลย', PersonStanding],
 ]
 
-export const emptyForm = { name: '', sex: 'm', age: '', weight: '', height: '', goal: 'lose', level: 1, days: 4, equip: 'gym', target: '' }
+export const emptyForm = { name: '', sex: 'm', age: '', weight: '', height: '', goal: 'lose', level: 1, days: 4, equip: 'gym', target: '', screen: [], preg: 'none' }
 
-export const toForm = (p) => ({ ...p, age: String(p.age), weight: String(p.weight), height: String(p.height), target: p.target ? String(p.target) : '' })
+export const toForm = (p) => ({ ...p, screen: p.screen || [], preg: p.preg || 'none', age: String(p.age), weight: String(p.weight), height: String(p.height), target: p.target ? String(p.target) : '' })
 export const toProfile = (f) => ({ ...f, name: f.name.trim(), age: +f.age, weight: +f.weight, height: +f.height, target: f.target ? +f.target : undefined })
 
-const RANGE = { age: [12, 90, 'อายุ 12–90 ปี'], weight: [30, 250, 'น้ำหนัก 30–250 กก.'], height: [120, 230, 'ส่วนสูง 120–230 ซม.'] }
-export function validate(f, touched = {}) {
-  const e = {}
-  if (!f.name.trim()) e.name = 'ใส่ชื่อก่อน'
-  for (const k in RANGE) {
-    const n = Number(f[k])
-    if (!f[k] || !(n >= RANGE[k][0] && n <= RANGE[k][1])) e[k] = RANGE[k][2]
-  }
-  if (f.target && !(Number(f.target) >= 30 && Number(f.target) <= 250)) e.target = 'เป้าหมาย 30–250 กก.'
-  return Object.fromEntries(Object.entries(e).filter(([k]) => touched.all || touched[k]))
+export { RANGE, validate, isValid } from '../lib/validate.js'
+
+/** ต้องกดรับทราบก่อนไปต่อหรือไม่: ติ๊กข้อคัดกรอง หรือตั้งครรภ์/ให้นมบุตร */
+export const needsAck = (f) => (f.screen?.length || 0) > 0 || (!!f.preg && f.preg !== 'none')
+
+/** คัดกรองสุขภาพก่อนเริ่ม (แนวเดียวกับ PAR-Q+) + สถานะตั้งครรภ์ — ผลที่ได้ทำให้แอพจำกัดท่า/ระดับให้ปลอดภัยขึ้น */
+export function HealthForm({ f, set, ack, setAck }) {
+  const screen = f.screen || []
+  const toggle = (k) => set({ screen: screen.includes(k) ? screen.filter((x) => x !== k) : [...screen, k] })
+  const age = Number(f.age)
+  const showPreg = f.sex === 'f' && age >= 12 && age <= 55
+  const lim = planLimits({ ...f, age, weight: +f.weight, height: +f.height })
+  return (
+    <>
+      <fieldset className="col hq-set">
+        <legend>คัดกรองสุขภาพ <span className="mute sm">แนวเดียวกับ PAR-Q+ · ติ๊กข้อที่ตรงกับคุณ (ถ้าไม่มีข้อไหนตรง ไม่ต้องติ๊ก)</span></legend>
+        {SCREEN.map(([k, t]) => (
+          <label key={k} className="hq"><input type="checkbox" checked={screen.includes(k)} onChange={() => toggle(k)} /><span>{t}</span></label>
+        ))}
+      </fieldset>
+      {showPreg && (
+        <div className="field"><span>สถานะ (ผู้หญิง)</span>
+          <select className="input" value={f.preg || 'none'} onChange={(e) => set({ preg: e.target.value })} aria-label="สถานะตั้งครรภ์หรือให้นมบุตร">
+            {PREG.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+          </select>
+        </div>
+      )}
+      {needsAck(f) && (
+        <div className="callout warn" role="status"><div className="col" style={{ gap: '0.25rem' }}>
+          <b>ควรปรึกษาแพทย์ก่อนเริ่มหรือเพิ่มความหนัก</b>
+          <span>{lim.reasons.join(' · ') || 'แอพจะจัดแผนแบบเบา'} · แอพไม่สามารถแทนคำแนะนำของแพทย์ได้ ถ้ามีเจ็บหน้าอก หายใจไม่ทัน หรือเวียนหัวจะเป็นลมระหว่างฝึก ให้หยุดทันที</span>
+          {setAck && <label className="hq" style={{ marginTop: '0.5rem' }}><input type="checkbox" checked={!!ack} onChange={(e) => setAck(e.target.checked)} /><span>ฉันเข้าใจ และจะปรึกษาแพทย์/ผู้เชี่ยวชาญตามความเหมาะสม</span></label>}
+        </div></div>
+      )}
+      {age > 0 && age < 18 && <p className="callout warn" role="status">อายุต่ำกว่า 18 ปี: ฝึกกับผู้ใหญ่หรือครูฝึกที่ดูท่าให้ เน้นท่าที่ถูกต้องก่อนเพิ่มน้ำหนัก ไม่ลดน้ำหนักด้วยการอดอาหาร</p>}
+    </>
+  )
 }
-export const isValid = (f) => Object.keys(validate(f, { all: true })).length === 0
 
 export function BodyForm({ f, set, touch, errors }) {
   const num = (k, label, unit, mode = 'decimal') => (

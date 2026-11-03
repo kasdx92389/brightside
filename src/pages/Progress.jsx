@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Flame, CalendarCheck, Scale, Trophy, Plus, Activity, Ruler, Medal, Lock, Target } from 'lucide-react'
+import { BookHeart, Flame, CalendarCheck, Scale, Trophy, Plus, Activity, Ruler, Medal, Lock, Target } from 'lucide-react'
 import { byId } from '../data/exercises.js'
 import { foodById } from '../data/foods.js'
 import { itemSodium } from '../data/sodium.js'
@@ -9,9 +9,12 @@ import {
   useStore, addWeight, addMeasure, dayStatus, streak, personalBests, volumeOf, setsDone, weekStats, getAchievements, finishedDates, waterGoal,
 } from '../store.js'
 import { Field } from '../components/ui.jsx'
+import ReviewCard from '../components/ReviewCard.jsx'
+import { moodOf } from '../lib/mood.js'
 
 const short = (k) => new Date(k + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
 const sign = (n) => (n > 0 ? '+' : '') + n
+const ST_TH = { done: 'ฝึกแล้ว', miss: 'พลาด', rest: 'วันพัก', skip: 'ข้ามวัน', todo: 'ยังไม่ถึง', pre: 'ก่อนเริ่มใช้แอพ' }
 const MEASURES = [['waist', 'รอบเอว'], ['arm', 'รอบแขน'], ['chest', 'รอบอก'], ['hip', 'รอบสะโพก']]
 
 function WeightChart({ data, target }) {
@@ -46,7 +49,7 @@ function Delta({ now, before, unit, good }) {
   return <span className={tone}>{d > 0 ? '+' : ''}{d.toLocaleString()}{unit}</span>
 }
 
-export default function Progress() {
+export default function Progress({ toast }) {
   const s = useStore()
   const { profile, plan, logs, weights, measures } = s
   const [kg, setKg] = useState('')
@@ -103,6 +106,8 @@ export default function Progress() {
       </div>
 
       <div className="masonry">
+      <ReviewCard s={s} today={today} toast={toast} />
+
       <section className="card col">
         <h2>สัปดาห์นี้เทียบสัปดาห์ก่อน</h2>
         <table className="tbl grid"><thead><tr><th></th><th>สัปดาห์นี้</th><th>ก่อนหน้า</th><th>ต่าง</th></tr></thead><tbody>
@@ -184,13 +189,20 @@ export default function Progress() {
 
       <section className="card col">
         <h2>ปฏิทิน 12 สัปดาห์</h2>
-        <div className="heat" role="img" aria-label={`ฝึกแล้ว ${finished.length} วันใน 12 สัปดาห์ล่าสุด`}>
+        <div className="heat" role="group" aria-label={`ปฏิทินการฝึก 12 สัปดาห์ ฝึกแล้ว ${finished.length} วัน แตะวันที่เพื่อเปิดความทรงจำของวันนั้น`}>
           {cells.map((k) => {
-            const st = k > today ? '' : dayStatus(s, k)
-            return <i key={k} title={k} className={`${st === 'done' ? 'done' : st === 'miss' ? 'miss' : ''} ${k === today ? 'today' : ''}`} />
+            if (k > today) return <i key={k} aria-hidden="true" />
+            const st = dayStatus(s, k), mo = moodOf(logs[k])
+            return (
+              <a key={k} href={`#/memory/${k}`} className={`${st === 'done' ? 'done' : st === 'miss' ? 'miss' : ''} ${k === today ? 'today' : ''}`} aria-label={`${short(k)} ${ST_TH[st]}${mo ? ' · ' + mo.th : ''}`} aria-current={k === today ? 'date' : undefined}>
+                {mo && <b style={{ background: mo.c }} />}
+              </a>
+            )
           })}
         </div>
-        <div className="legend"><span><i className="d" /> ฝึกแล้ว</span><span><i className="m" /> พลาด</span><span><i /> พัก/ข้าม/ยังไม่ถึง</span></div>
+        <div className="legend"><span><i className="d" /> ฝึกแล้ว</span><span><i className="m" /> พลาด</span><span><i /> พัก/ข้าม/ยังไม่ถึง</span><span><i className="dot" /> จุดสี = อารมณ์ที่บันทึก</span></div>
+        <p className="hint">แตะวันที่ใดก็ได้เพื่อดูความทรงจำ — อารมณ์และข้อความที่เคยเขียนไว้ (หรือบันทึกย้อนหลัง)</p>
+        <a className="btn block" href="#/memory"><BookHeart /> เปิดความทรงจำทั้งเดือน</a>
       </section>
 
       <section className="card col">

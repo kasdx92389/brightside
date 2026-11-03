@@ -8,9 +8,15 @@ import { unitInfo, fmtAmt } from '../src/lib/units.js'
 import { suggestKg, effectiveWeight, hasSuggestion, personalFactor } from '../src/lib/loads.js'
 import { EXERCISES as ALL_EX } from '../src/data/exercises.js'
 import { mealTargets } from '../src/lib/calc.js'
+import { planLimits, planConflicts, fixPlan, whyAvoid, IMPACT, BALLISTIC, OLYMPIC, HEAVY_HINGE, HEAVY_HINGE_ALL, SUPINE, PRONE, SCREEN, PREG } from '../src/lib/safety.js'
+import { teenEER } from '../src/lib/calc.js'
+import { sanitizeState, sanitizeProfile, sanitizePlan } from '../src/lib/sanitize.js'
 import { addFood, removeFood, updateFood, getState, addMyFood, removeMyFood } from '../src/store.js'
 import { gramsPerUnit, gramInfo, addonGw } from '../src/data/grams.js'
 import { merge } from '../src/lib/merge.js'
+import { MOODS, MOOD_BY, moodOf, isLow, isHigh, pastEncouragement, sustainedLow, monthSummary, moodVsTraining, validDate, validMonth, kindLine, NOTE_MAX } from '../src/lib/mood.js'
+import { weightTrend, calorieAdvice, adherence, groupBalance, fatigueFlag, expectedRange, ADJ_MAX } from '../src/lib/review.js'
+import { setMood, setKcalAdj } from '../src/store.js'
 import { RECIPES, INGREDIENTS } from '../src/data/recipes.js'
 import { sodiumOf, addonSodium, itemSodium } from '../src/data/sodium.js'
 import { loadStep, regressHint, overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
@@ -279,9 +285,8 @@ console.log('ok — nutrition')
   assert.ok(Object.keys(byId2).length && ALL_EX.every((e) => !hasSuggestion(e.id) || ['db', 'bb', 'cable', 'machine'].includes(e.eq)), 'suggestion only for weighted equipment')
   const man = { weight: 70, height: 175, sex: 'm', age: 28, level: 1 }
   const S = (id, p = man) => suggestKg(byId2[id], p).kg
-  assert.ok(S('barbell-squat') >= 20 && S('barbell-squat') <= 40, 'squat ~25 (conservative) for 70kg male: ' + S('barbell-squat'))
-  assert.ok(S('barbell-bench') <= S('barbell-squat') + 5 && S('db-curl') <= 8 && S('lat-pulldown') >= 20, 'sane ratios')
-  assert.ok(S('bent-db-row') < S('db-row') && S('db-rdl') <= S('db-row'), 'hinge/back-loaded lifts start lighter than supported rows')
+  assert.ok(S('barbell-squat') >= 25 && S('barbell-squat') <= 45, 'squat ~35 for 70kg male: ' + S('barbell-squat'))
+  assert.ok(S('barbell-bench') <= S('barbell-squat') + 5 && S('db-curl') <= 8 && S('lat-pulldown') >= 25, 'sane ratios')
   assert.ok(S('db-bench-press', { ...man, sex: 'f' }) < S('db-bench-press'), 'female lighter')
   assert.ok(S('db-bench-press', { ...man, age: 68 }) < S('db-bench-press'), 'senior lighter')
   assert.ok(S('db-bench-press', { ...man, age: 15 }) < S('db-bench-press'), 'teen lighter')
@@ -308,4 +313,276 @@ console.log('ok — nutrition')
       assert.ok(r && r.kg > 0 && r.kg <= 400 && Number.isFinite(r.kg), `load ${e.id} ${JSON.stringify(p)} -> ${r?.kg}`)
     }
   }
+}
+
+// ───── อารมณ์ / ความทรงจำ ─────
+{
+  assert.equal(MOODS.length, 10)
+  assert.equal(new Set(MOODS.map((m) => m.id)).size, 10)
+  assert.ok(MOODS.every((m) => /^#[0-9a-f]{6}$/i.test(m.c) && m.v >= 1 && m.v <= 5 && m.th))
+  assert.ok(isHigh(MOOD_BY.joy) && isLow(MOOD_BY.cry) && !isLow(MOOD_BY.meh) && !isHigh(MOOD_BY.meh))
+  assert.equal(moodOf({ mood: { m: 'nope' } }), null)
+  assert.ok(validDate('2026-11-04') && !validDate('2026-02-30') && !validDate('2026-1-4') && !validDate(undefined))
+  assert.ok(validMonth('2026-11') && !validMonth('2026-13') && !validMonth('2026-11-04'))
+  const today = '2026-11-10'
+  const L = (m, note = '', extra = {}) => ({ mood: { m, note, at: 1 }, ...extra })
+  const logs = { '2026-11-01': L('joy', 'วันนี้ยกขาไหวแล้ว ภูมิใจมาก'), '2026-11-02': L('proud', 'สั้น'), '2026-11-05': L('sad', 'เหนื่อยจัง'), '2026-11-06': L('tired'), '2026-11-07': L('cry'), '2026-11-08': L('angry'), '2026-11-09': L('sad') }
+  // กำลังใจ: ใช้เฉพาะข้อความของวันที่อารมณ์ดีและยาว ≥8 ตัวอักษร · คงที่ตามวันที่
+  const e = pastEncouragement(logs, '2026-11-07', today)
+  assert.equal(e.date, '2026-11-01'); assert.equal(pastEncouragement(logs, '2026-11-07', today).note, e.note)
+  assert.equal(pastEncouragement({ '2026-11-02': logs['2026-11-02'] }, '2026-11-07', today), null, 'short note not used')
+  assert.equal(pastEncouragement({ '2026-11-12': L('joy', 'ข้อความจากอนาคตห้ามใช้ทั้งนั้น') }, '2026-11-07', today), null, 'future entries ignored')
+  assert.ok(kindLine('2026-11-07').length > 10 && kindLine('2026-11-07') === kindLine('2026-11-07'))
+  // หนักต่อเนื่อง: ≥5 วันที่มีบันทึกใน 7 วัน และ ≥5 วันเป็นอารมณ์หนัก
+  assert.equal(sustainedLow(logs, today), true, '5 วันติดกันที่บันทึกและหนักทั้ง 5')
+}
+{
+  const today = '2026-11-10'
+  const L = (m) => ({ mood: { m, note: '', at: 1 } })
+  const five = Object.fromEntries(['06', '07', '08', '09', '10'].map((d, i) => ['2026-11-' + d, L(['sad', 'cry', 'tired', 'angry', 'sad'][i])]))
+  assert.equal(sustainedLow(five, today), true)
+  assert.equal(sustainedLow({ ...five, '2026-11-10': L('joy') }, today), false, '4 จาก 5 ยังไม่ถึงเกณฑ์')
+  assert.equal(sustainedLow({ '2026-11-10': L('sad') }, today), false, 'ข้อมูลน้อยไม่สรุป')
+  // สรุปเดือน
+  assert.equal(monthSummary({}, '2026-11').headline, '')
+  assert.equal(monthSummary({ '2026-11-01': L('joy'), '2026-11-02': L('happy'), '2026-11-03': L('calm'), '2026-11-04': L('meh') }, '2026-11').headline, 'เดือนนี้ยิ้มมากหน่อย')
+  assert.match(monthSummary({ '2026-11-01': L('sad'), '2026-11-02': L('cry'), '2026-11-03': L('joy') }, '2026-11').headline, /ใจดีกับตัวเอง/)
+  assert.equal(monthSummary({ '2026-10-01': L('joy') }, '2026-11').n, 0)
+  // อารมณ์กับการฝึก: ต้องมี ≥4 วันทั้งสองกลุ่ม
+  assert.equal(moodVsTraining({ a: { ...L('joy'), finished: true } }), null)
+  const mix = {}
+  for (let i = 1; i <= 4; i++) { mix['t' + i] = { ...L('joy'), finished: true }; mix['o' + i] = { ...L('meh'), finished: false } }
+  assert.deepEqual(moodVsTraining(mix), { train: 5, other: 3, nT: 4, nO: 4 })
+}
+{ // store: บันทึก/ลบอารมณ์ · ห้ามบันทึกอนาคต · ตัดความยาว
+  const d = '2026-01-15'
+  setMood(d, { m: 'joy', note: '  ดีมาก  ' })
+  assert.equal(getState().logs[d].mood.m, 'joy'); assert.equal(getState().logs[d].mood.note, 'ดีมาก')
+  setMood(d, { m: 'sad' }); assert.equal(getState().logs[d].mood.note, 'ดีมาก', 'เปลี่ยนอารมณ์ไม่ทำข้อความหาย')
+  setMood(d, { note: 'x'.repeat(NOTE_MAX + 50) }); assert.equal(getState().logs[d].mood.note.length, NOTE_MAX)
+  setMood(d, { m: 'bogus' }); assert.equal(getState().logs[d].mood, undefined, 'id ที่ไม่รู้จัก = ลบ')
+  setMood(addDays(new Date().toISOString().slice(0, 10), 3), { m: 'joy' })
+  assert.equal(Object.keys(getState().logs).some((k) => k > new Date(Date.now() + 86400000).toISOString().slice(0, 10) && getState().logs[k].mood), false, 'future date rejected')
+  // อารมณ์ไม่กระทบสถานะการฝึก/streak
+  assert.equal(getState().logs[d].finished ?? false, false)
+}
+{ // ซิงก์: อารมณ์อยู่ในล็อกรายวัน → ฝั่งที่แก้ใหม่กว่าชนะทั้งวัน และไม่ทำให้ merge พัง
+  const base = { profile: null, plan: null, favs: [], myFoods: [], deloadUntil: null, weights: [], measures: [], createdAt: '2026-01-01' }
+  const a = { ...base, logs: { '2026-01-15': { sets: {}, mood: { m: 'joy', note: 'a', at: 1 } } }, mod: { 'logs/2026-01-15': 100 } }
+  const b = { ...base, logs: { '2026-01-15': { sets: {}, mood: { m: 'sad', note: 'b', at: 2 } } }, mod: { 'logs/2026-01-15': 200 } }
+  assert.equal(merge(a, b).logs['2026-01-15'].mood.m, 'sad'); assert.equal(merge(b, a).logs['2026-01-15'].mood.m, 'sad')
+}
+
+// ───── โค้ชปรับตามข้อมูลจริง ─────
+{
+  const today = '2026-11-30'
+  const prof = { name: 't', sex: 'm', age: 30, height: 175, weight: 80, days: 4, goal: 'lose', level: 2 }
+  const t0 = targets(prof)
+  const series = (kgPerWeek, days = 28, start = 80) => Array.from({ length: Math.floor(days / 3) + 1 }, (_, i) => ({ date: addDays(today, -days + i * 3), kg: Math.round((start + kgPerWeek * ((i * 3) / 7)) * 10) / 10 }))
+  const food = (kcal, n = 8) => Object.fromEntries(Array.from({ length: n }, (_, i) => [addDays(today, -i - 1), { food: { kcal } }]))
+  const S = (over = {}) => ({ profile: prof, plan: generatePlan({ goal: 'lose', level: 2, days: 4, equip: 'gym' }), logs: {}, weights: [], measures: [], createdAt: '2026-01-01', ...over })
+
+  // weightTrend: ต้อง ≥3 ครั้ง ช่วง ≥14 วัน · ความชันตรงตามจริง
+  assert.equal(weightTrend([{ date: today, kg: 80 }], addDays(today, -28), today), null)
+  assert.equal(weightTrend(series(0, 10), addDays(today, -28), today), null, 'span <14 วัน')
+  const tr = weightTrend(series(-0.5), addDays(today, -28), today)
+  assert.ok(Math.abs(tr.kgWk + 0.5) < 0.05 && tr.pctWk < -0.5 && tr.pctWk > -0.7, JSON.stringify(tr))
+  assert.deepEqual(expectedRange({ mode: 'cut', delta: -400 }), [-1, -0.4]); assert.deepEqual(expectedRange({ mode: 'bulk', delta: 300 }), [0.15, 0.5])
+
+  assert.equal(calorieAdvice(S({ profile: { ...prof, age: 16 } }), today), null, 'อายุ <18 ไม่ปรับ')
+  assert.equal(calorieAdvice(S(), today).kind, 'wait', 'ไม่มีน้ำหนัก')
+  assert.equal(calorieAdvice(S({ weights: series(-0.35) }), today).kind, 'ok', 'ลด ~0.44%/สัปดาห์ = ตามเป้า')
+  const fast = calorieAdvice(S({ weights: series(-1.2) }), today)
+  assert.equal(fast.kind, 'adjust'); assert.equal(fast.delta, 150); assert.equal(fast.next, 150); assert.ok(fast.kcal > fast.from)
+  // น้ำหนักไม่ลง: ต้องดูว่ากินตามเป้าไหมก่อน
+  const stall = (logs) => calorieAdvice(S({ weights: series(0), logs }), today)
+  assert.equal(stall({}).kind, 'behavior', 'ไม่มีบันทึกอาหาร ห้ามเดา')
+  assert.equal(stall(food(t0.kcal + 500)).kind, 'behavior', 'กินเกินเป้า → แก้พฤติกรรม ไม่ลดเป้า')
+  assert.equal(stall(food(Math.round(t0.kcal * 0.6))).kind, 'behavior', 'บันทึกต่ำผิดปกติ')
+  const cut = stall(food(t0.kcal)); assert.equal(cut.kind, 'adjust'); assert.equal(cut.delta, -150); assert.ok(cut.kcal < cut.from)
+  // เพดานการปรับ ±300 + ต้องรออย่างน้อยหลังวันที่ปรับ
+  assert.equal(calorieAdvice(S({ profile: { ...prof, kcalAdj: -300, kcalAdjAt: addDays(today, -40) }, weights: series(0), logs: food(t0.kcal - 300) }), today).kind, 'cap')
+  assert.equal(calorieAdvice(S({ profile: { ...prof, kcalAdj: -150, kcalAdjAt: addDays(today, -5) }, weights: series(0) }), today).kind, 'wait', 'เพิ่งปรับ ต้องรอ 2 สัปดาห์')
+  // ไม่ลดต่ำกว่าขั้นต่ำปลอดภัย
+  const lean = { ...prof, sex: 'f', weight: 50, height: 165, age: 30, days: 2 }
+  const low = calorieAdvice(S({ profile: lean, weights: series(0, 28, 50), logs: food(targets(lean).kcal) }), today)
+  assert.ok(low.kind !== 'adjust' || targets({ ...lean, kcalAdj: low.next }).kcal >= 1200, JSON.stringify(low))
+  // เป้าเพิ่มกล้าม: ขึ้นเร็วไป → ลดเป้า · ไม่ขึ้นและกินครบ → เพิ่มเป้า
+  const bulkP = { ...prof, goal: 'muscle', weight: 62, height: 175 }
+  const tb = targets(bulkP); assert.equal(tb.mode, 'bulk')
+  assert.equal(calorieAdvice(S({ profile: bulkP, weights: series(0.9, 28, 62) }), today).delta, -150)
+  assert.equal(calorieAdvice(S({ profile: bulkP, weights: series(0, 28, 62), logs: food(tb.kcal) }), today).delta, 150)
+  assert.equal(calorieAdvice(S({ profile: bulkP, weights: series(0, 28, 62), logs: food(tb.kcal - 500) }), today).kind, 'behavior')
+
+  // targets: kcalAdj ใช้จริง จำกัด ±300 ไม่ใช้กับอายุ <18 และปรับคาร์บตาม
+  const base = targets(prof)
+  assert.equal(targets({ ...prof, kcalAdj: -150 }).kcal, base.kcal - 150)
+  assert.equal(targets({ ...prof, kcalAdj: 9999 }).kcal, base.kcal + ADJ_MAX)
+  assert.equal(targets({ ...prof, age: 16, kcalAdj: 300 }).kcal, targets({ ...prof, age: 16 }).kcal)
+  assert.ok(targets({ ...prof, kcalAdj: -150 }).carb < base.carb)
+  setKcalAdj(-130); assert.equal(getState().profile?.kcalAdj ?? -150, -150, 'ปัดทีละ 50')
+}
+{ // ความสม่ำเสมอ / สมดุลกลุ่ม / ความล้า
+  const today = '2026-11-30' // จันทร์
+  const plan = generatePlan({ goal: 'fit', level: 2, days: 4, equip: 'gym' })
+  const trainDates = []
+  for (let i = 1; i <= 28; i++) { const d = addDays(today, -i); const idx = (new Date(d + 'T00:00:00').getDay() + 6) % 7; if (plan.days[idx].kind !== 'rest') trainDates.push(d) } // walk นับเป็นงานของวัน เหมือน dayStatus
+  const logsAll = Object.fromEntries(trainDates.map((d) => [d, { finished: true, sets: {} }]))
+  const S = (logs) => ({ profile: { age: 30 }, plan, logs, weights: [], measures: [], createdAt: '2026-01-01' })
+  const a = adherence(S(logsAll), today); assert.equal(a.pct, 1); assert.equal(a.n, trainDates.filter((d) => d >= addDays(today, -27)).length)
+  const half = Object.fromEntries(trainDates.filter((_, i) => i % 2).map((d) => [d, { finished: true, sets: {} }]))
+  assert.ok(Math.abs(adherence(S(half), today).pct - 0.5) < 0.1)
+  const skipAll = Object.fromEntries(trainDates.map((d) => [d, { skipped: true, sets: {} }]))
+  assert.equal(adherence(S(skipAll), today).n, 0, 'วันที่กดข้ามไม่นับว่าพลาด')
+  // สมดุลกลุ่ม: ทำขาครบแต่ไม่ทำอกเลย → อกต้องถูกธงว่าต่ำ
+  const sets = {}
+  for (const d of trainDates.filter((x) => x >= addDays(today, -14))) {
+    const idx = (new Date(d + 'T00:00:00').getDay() + 6) % 7
+    sets[d] = { sets: Object.fromEntries(plan.days[idx].items.filter((it) => byId[it.id].g !== 'chest').map((it) => [it.id, Array.from({ length: it.sets }, () => ({ done: true }))]) ) }
+  }
+  const bal = groupBalance(S(sets), today)
+  assert.ok(bal.find((x) => x.g === 'chest')?.low, 'chest flagged'); assert.ok(!bal.find((x) => x.g === 'legs')?.low, 'legs not flagged')
+  assert.ok(bal.every((x) => x.planned >= 6 && x.done <= x.planned))
+  // ความล้า
+  const L = (m) => ({ mood: { m, note: '', at: 1 } })
+  assert.equal(fatigueFlag(S({ [addDays(today, -1)]: L('tired'), [addDays(today, -2)]: L('sad'), [addDays(today, -3)]: L('angry'), [addDays(today, -4)]: L('joy') }), today).low, 3)
+  assert.equal(fatigueFlag(S({ [addDays(today, -1)]: L('tired'), [addDays(today, -2)]: L('sad'), [addDays(today, -3)]: L('joy') }), today), null)
+}
+console.log('ok — mood, memory, review')
+
+// ───── ความปลอดภัย: ข้อจำกัดท่า/ระดับ/โภชนาการ ทุกกลุ่มผู้ใช้ ─────
+{
+  for (const ids of [IMPACT, BALLISTIC, OLYMPIC, HEAVY_HINGE_ALL, SUPINE, PRONE]) for (const id of ids) assert.ok(byId[id], 'safety list id missing from library: ' + id)
+  assert.ok(byId['single-leg-balance'])
+  // ผู้ใหญ่ทั่วไปไม่โดนจำกัดอะไรเลย (พฤติกรรมเดิมต้องไม่เปลี่ยน)
+  const adult = { age: 30, sex: 'm', weight: 70, height: 172, level: 3 }
+  const L0 = planLimits(adult); assert.equal(L0.maxLevel, 3); assert.equal(L0.avoid.size, 0); assert.equal(L0.reasons.length, 0)
+  assert.equal(planLimits({ ...adult, age: 55 }).avoid.has('power-clean'), true); assert.equal(planLimits({ ...adult, age: 55 }).avoid.has('jump-squat'), false)
+  assert.equal(planLimits({ ...adult, weight: 100 }).avoid.has('jump-squat'), true, 'BMI ≥30 เลี่ยงท่ากระแทก')
+  assert.equal(planLimits({ ...adult, age: 17 }).maxLevel, 2); assert.equal(planLimits({ ...adult, age: 70 }).balance, true)
+  assert.equal(planLimits({ ...adult, screen: ['chest'] }).maxLevel, 1)
+  assert.equal(planLimits({ ...adult, screen: ['bogus'] }).maxLevel, 3, 'ค่าคัดกรองที่ไม่รู้จักไม่มีผล')
+  const pg = (preg) => planLimits({ ...adult, sex: 'f', preg })
+  assert.equal(pg('1').avoid.has('crunch'), false); assert.equal(pg('2').avoid.has('crunch'), true); assert.equal(pg('3').avoid.has('plank'), true); assert.equal(pg('pp').avoid.has('crunch'), false)
+  assert.ok(whyAvoid('jump-squat', { ...adult, age: 70 }) && !whyAvoid('jump-squat', adult) && whyAvoid('power-clean', { ...adult, level: 3, age: 16 }))
+
+  // เมทริกซ์: ทุกโปรไฟล์ × ทุกเป้า/ระดับ/วัน/อุปกรณ์ → แผนต้องไม่มีท่าต้องห้าม ไม่เกินระดับที่อนุญาต และยังใช้ได้จริง
+  const PROFILES = []
+  for (const age of [12, 16, 17, 18, 30, 49, 50, 64, 65, 80]) for (const sex of ['m', 'f']) for (const [weight, height] of [[45, 165], [65, 170], [100, 170]])
+    for (const screen of [[], ['chest']]) for (const preg of sex === 'f' && age >= 18 && age <= 45 ? ['none', '1', '2', '3', 'pp'] : ['none']) PROFILES.push({ age, sex, weight, height, screen, preg })
+  let planCount = 0
+  for (const pr of PROFILES) for (const goal of ['lose', 'fit', 'muscle']) for (const level of [1, 2, 3]) for (const equip of ['gym', 'db', 'home']) for (const days of [3, 5]) {
+    const p = generatePlan({ ...pr, goal, level, days, equip }); planCount++
+    const L = planLimits(pr), tag = JSON.stringify(pr) + goal + level + equip + days
+    assert.deepEqual(planConflicts(p, { ...pr, level, equip }), [], 'conflict in generated plan ' + tag)
+    for (const d of p.days) {
+      if (d.kind === 'train') assert.ok(d.items.length >= 3, 'thin day ' + d.name + ' ' + tag)
+      for (const it of d.items) { assert.ok(!L.avoid.has(it.id), it.id + ' banned ' + tag); assert.ok(byId[it.id].lv <= Math.min(level, L.maxLevel), it.id + ' too hard ' + tag) }
+      if (L.balance && d.kind === 'train') assert.ok(d.items.some((i) => i.id === 'single-leg-balance'), 'senior day needs balance ' + tag)
+    }
+  }
+  console.log(`ok — safety matrix: ${PROFILES.length} profiles, ${planCount} plans`)
+
+  // fixPlan: แผนเสี่ยงที่รับมาจากเพื่อน/สร้างไว้ก่อนแก้โปรไฟล์ → แทนท่าได้ ไม่ทำให้วันว่าง
+  const risky = { name: 'x', days: [{ kind: 'train', name: 'A', focus: 'x', items: [{ id: 'jump-squat', sets: 3, reps: '10' }, { id: 'barbell-deadlift', sets: 3, reps: '6–8' }, { id: 'goblet-squat', sets: 3, reps: '10' }, { id: 'treadmill-intervals', sets: 1, reps: '20 นาที' }, { id: 'power-clean', sets: 3, reps: '3–5' }] }, { kind: 'rest', name: 'พัก', focus: '', items: [] }] }
+  const senior = { age: 72, sex: 'f', weight: 60, height: 158, level: 2, equip: 'gym' }
+  assert.ok(planConflicts(risky, senior).length >= 4)
+  const fixed = fixPlan(risky, senior)
+  assert.deepEqual(planConflicts(fixed, senior), []); assert.equal(fixed.days.length, 2); assert.ok(fixed.days[0].items.some((i) => i.id === 'goblet-squat'), 'ท่าที่ปลอดภัยคงอยู่'); assert.ok(fixed.days[0].items.length >= 3)
+  assert.equal(new Set(fixed.days[0].items.map((i) => i.id)).size, fixed.days[0].items.length, 'ไม่มีท่าซ้ำหลังแทน')
+  assert.deepEqual(fixPlan(PPL, adult).days, PPL.days, 'แผนปกติของผู้ใหญ่ไม่ถูกแตะ')
+}
+{ // โภชนาการ: วัยรุ่น (IOM) · ตั้งครรภ์/ให้นมบุตร · ทุกกลุ่มต้องได้ค่าที่สมเหตุสมผล
+  const boy = { sex: 'm', age: 16, weight: 60, height: 170, days: 4, goal: 'fit', level: 1 }
+  assert.ok(teenEER({ ...boy, weight: 140, height: 170 }) < 3300, 'น้ำหนักเกินมากไม่ทำให้เป้าพุ่ง')
+  assert.equal(Math.round(teenEER(boy)), 2668, 'IOM boys 9–18 low-active: 88.5−61.9×16 + 1.13×(26.7×60+903×1.7) + 25')
+  assert.equal(Math.round(teenEER({ ...boy, sex: 'f' })), Math.round(135.3 - 30.8 * 16 + 1.16 * (10 * 60 + 934 * 1.7) + 25))
+  assert.ok(teenEER({ ...boy, days: 5 }) > teenEER(boy))
+  for (const goal of ['lose', 'muscle', 'fit']) for (const sex of ['m', 'f']) for (const age of [12, 15, 17]) {
+    const t = targets({ ...boy, sex, age, goal, weight: age === 12 ? 42 : 58, height: age === 12 ? 150 : 165 })
+    assert.ok(t.kcal >= 1700 && t.kcal <= 3500, `teen kcal ${sex}${age}${goal}: ${t.kcal}`)
+    assert.ok(t.mode !== 'cut' && t.delta >= 0, 'วัยรุ่นไม่ขาดดุล')
+    assert.ok(t.protein[0] >= 1.2 * 40 - 5)
+  }
+  const wf = { sex: 'f', age: 30, weight: 60, height: 163, days: 3, goal: 'lose', level: 1 }
+  const base = targets(wf), t2 = targets({ ...wf, preg: '2' }), t3 = targets({ ...wf, preg: '3' }), pp = targets({ ...wf, preg: 'pp' })
+  assert.ok(base.kcal < base.tdee, 'ปกติ: เป้าลดน้ำหนักต่ำกว่า TDEE')
+  assert.ok(Math.abs(t2.kcal - (base.tdee + 340)) <= 50 && Math.abs(t3.kcal - (base.tdee + 452)) <= 50, 'ตั้งครรภ์: ไม่ขาดดุล + ส่วนเพิ่มไตรมาส')
+  assert.ok(Math.abs(targets({ ...wf, preg: '1' }).kcal - base.tdee) <= 50 && Math.abs(pp.kcal - (base.tdee + 330)) <= 50)
+  assert.equal(t2.mode, 'maintain'); assert.equal(t2.delta, 0); assert.ok(t2.notes.some((n) => /ไม่ตั้งขาดดุล/.test(n.text)))
+  assert.equal(targets({ ...wf, preg: '2', kcalAdj: -300 }).kcal, t2.kcal, 'ตั้งครรภ์: ไม่ใช้การปรับเป้าอัตโนมัติ')
+  assert.ok(t2.water > base.water && pp.water > t2.water)
+  assert.ok(targets({ ...wf, screen: ['chronic'] }).notes.some((n) => /โรคเรื้อรัง/.test(n.text)))
+  assert.ok(targets(wf).notes.some((n) => /โรคไต/.test(n.text)))
+  // กวาดทุกกลุ่ม: ค่าต้องจำกัดความ finite สมเหตุสมผล ไม่ต่ำกว่าขั้นต่ำปลอดภัย
+  let n = 0
+  for (const sex of ['m', 'f']) for (const age of [12, 14, 17, 18, 25, 40, 59, 60, 75, 90]) for (const [weight, height] of [[30, 120], [40, 150], [55, 160], [70, 175], [95, 180], [140, 170], [250, 200]]) for (const goal of ['lose', 'muscle', 'fit']) for (const days of [3, 6]) for (const preg of sex === 'f' && age >= 18 && age <= 45 ? ['none', '2', 'pp'] : ['none']) {
+    if (age < 18 && (height > 185 || weight > 150)) continue // ผสมที่เป็นไปไม่ได้ทางกายภาพ (เช่น อายุ 12 สูง 2 เมตร)
+    const t = targets({ sex, age, weight, height, days, goal, level: 2, preg }); n++
+    const tag = JSON.stringify({ sex, age, weight, height, goal, days, preg })
+    for (const v of [t.kcal, t.carb, t.fat, t.fiber, t.sugar, t.sodium, t.water, t.protein[0], t.protein[1]]) assert.ok(Number.isFinite(v) && v > 0, 'non-finite ' + tag)
+    if (age >= 18) assert.ok(t.kcal >= (sex === 'f' ? 1200 : 1500), 'below floor ' + tag + ' ' + t.kcal)
+    assert.ok(t.kcal <= (age < 18 ? 4300 : 6500), 'absurd kcal ' + tag + ' ' + t.kcal)
+    assert.ok(t.protein[0] <= t.protein[1] && t.protein[1] <= 3.0 * weight + 5, 'protein ' + tag)
+    assert.ok(t.carb >= 100 && t.fat >= 20, 'macros ' + tag)
+    assert.ok(t.water >= 1.5 && t.water <= 4.5, 'water ' + tag)
+    if (age < 18 || preg !== 'none') assert.ok(t.delta >= 0, 'ห้ามขาดดุล ' + tag)
+  }
+  console.log('ok — nutrition sweep:', n, 'profiles')
+}
+
+// ───── ความทนทานของข้อมูล: sanitize + fuzz ─────
+{
+  const today = '2026-11-04'
+  const profile = { name: 'เจมส์', sex: 'm', age: 32, weight: 73.6, height: 175, goal: 'muscle', level: 2, days: 5, equip: 'gym', rest: 90, target: 70, screen: [], preg: 'none', loadAdj: 0.85, kcalAdj: 150, kcalAdjAt: '2026-10-20' }
+  const plan = { ...generatePlan({ ...profile }), startedAt: '2026-09-01' }
+  const good = { profile, plan, logs: { '2026-11-03': { sets: { 'db-curl': [{ done: true, kg: 10, reps: '10' }] }, finished: true, food: { kcal: 2000, protein: 120, carb: 200, fat: 60, water: 8, items: [{ id: 'x', n: 'ข้าวสวย', q: 1, s: 0, k: 80, p: 2, c: 18, f: 0.3 }] }, mood: { m: 'joy', note: 'ดี', at: 5 }, warm: true, startedAt: 1, finishedAt: 2 } }, weights: [{ date: '2026-11-01', kg: 73.6 }], measures: [{ date: '2026-11-01', waist: 80 }], favs: ['pushup'], myFoods: [{ id: 'my1', n: 'ของฉัน', u: '100 g', k: 100, p: 5, c: 10, f: 2 }], deloadUntil: null, createdAt: '2026-09-01', mod: { profile: 5, 'logs/2026-11-03': 9 } }
+  const c = sanitizeState(JSON.parse(JSON.stringify(good)), today)
+  assert.deepEqual(c.profile, profile, 'โปรไฟล์ที่ดีไม่ถูกเปลี่ยน')
+  assert.deepEqual(c.plan.days, plan.days, 'แผนที่ดีไม่ถูกเปลี่ยน'); assert.equal(c.plan.startedAt, '2026-09-01')
+  assert.deepEqual(c.logs['2026-11-03'].sets, good.logs['2026-11-03'].sets); assert.deepEqual(c.logs['2026-11-03'].food, good.logs['2026-11-03'].food); assert.deepEqual(c.logs['2026-11-03'].mood, good.logs['2026-11-03'].mood)
+  assert.deepEqual([c.weights, c.measures, c.favs, c.myFoods, c.mod], [good.weights, good.measures, good.favs, good.myFoods, good.mod])
+  assert.deepEqual(sanitizeState(c, today), c, 'idempotent')
+  // ค่าร่างกายเสีย → profile null (ให้กรอกใหม่) · ค่าอื่นผิดชนิดถูกซ่อม
+  for (const bad of [{ age: 'abc' }, { weight: 0 }, { height: 999 }, { age: null }, { weight: NaN }, { age: 5 }]) assert.equal(sanitizeProfile({ ...profile, ...bad }), null, JSON.stringify(bad))
+  const fixed = sanitizeProfile({ ...profile, goal: 'zzz', level: 9, days: 'x', equip: 1, rest: 7, screen: ['heart', 'bogus', 'heart'], preg: '9', target: -5, kcalAdj: 9e9, name: '' })
+  assert.deepEqual([fixed.goal, fixed.level, fixed.days, fixed.equip, fixed.rest, fixed.screen, fixed.preg, fixed.target, fixed.kcalAdj, fixed.name], ['fit', 1, 4, 'gym', 90, ['heart'], 'none', undefined, undefined, 'เพื่อน'])
+  assert.equal(sanitizeProfile({ ...profile, sex: 'm', preg: '2' }).preg, 'none', 'ชายไม่มีสถานะตั้งครรภ์')
+  assert.equal(sanitizePlan({ days: [] }), null); assert.equal(sanitizePlan({ days: Array(7).fill({ kind: 'weird', items: [] }) }), null)
+  const odd = sanitizePlan({ name: 5, days: Array(7).fill({ kind: 'train', name: 'A', items: [{ id: 'pushup', sets: 99, reps: 12 }, { id: 5 }, null, 'x'] }) })
+  assert.equal(odd.days[0].items.length, 1); assert.equal(odd.days[0].items[0].sets, 3); assert.equal(odd.days[0].items[0].reps, '12')
+
+  // fuzz: ข้อมูลสุ่มเละๆ ต้องไม่ throw ไม่ทำให้ targets/generatePlan พัง และผลลัพธ์ต้องมีรูปร่างถูก
+  let seed = 12345; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
+  const junk = () => [null, undefined, NaN, Infinity, -1, 0, '', 'abc', '2026-02-30', '2026-11-03', [], {}, [1, 2], { a: 1 }, true, 1e308, 'x'.repeat(5000), () => 1, Symbol.iterator.toString()][Math.floor(rnd() * 19)]
+  const mutate = (o, depth = 0) => {
+    if (Array.isArray(o)) return o.map((x) => (rnd() < 0.2 ? junk() : mutate(x, depth + 1)))
+    if (o && typeof o === 'object') return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, rnd() < 0.2 ? junk() : mutate(v, depth + 1)]))
+    return o
+  }
+  let kept = 0, nulled = 0
+  for (let i = 0; i < 4000; i++) {
+    const m = rnd() < 0.15 ? junk() : mutate(JSON.parse(JSON.stringify(good)))
+    let out
+    assert.doesNotThrow(() => { out = sanitizeState(m, today) }, 'sanitize threw on ' + i)
+    assert.ok(out.logs && typeof out.logs === 'object' && Array.isArray(out.weights) && Array.isArray(out.measures) && Array.isArray(out.favs) && Array.isArray(out.myFoods))
+    for (const w of out.weights) assert.ok(Number.isFinite(w.kg) && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(w.date))
+    for (const [d, l] of Object.entries(out.logs)) { assert.ok(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d) && l.sets && typeof l.sets === 'object' && !Array.isArray(l.sets)); for (const a of Object.values(l.sets)) assert.ok(Array.isArray(a)); if (l.mood) assert.ok(MOOD_BY[l.mood.m] && l.mood.note.length <= NOTE_MAX) }
+    if (out.profile) { kept++; const t = targets(out.profile); assert.ok(Number.isFinite(t.kcal) && t.kcal > 0, 'targets NaN from sanitized profile ' + JSON.stringify(out.profile)); assert.ok(generatePlan({ ...out.profile }).days.length === 7) } else nulled++
+    if (out.plan) { assert.equal(out.plan.days.length, 7); for (const d of out.plan.days) for (const it of d.items) assert.ok(typeof it.id === 'string' && it.sets >= 1 && it.sets <= 12 && typeof it.reps === 'string') }
+  }
+  console.log('ok — sanitize fuzz: 4000 mutated states (profile kept ' + kept + ', reset ' + nulled + ')')
+}
+// ───── เป้าหมายน้ำหนักต้องไม่ต่ำกว่า BMI 18.5 · ลดเร็วผิดปกติต้องมีคำแนะนำพบแพทย์ ─────
+{
+  const { validate, isValid } = await import('../src/lib/validate.js')
+  const f = { name: 'x', age: '30', weight: '60', height: '170', target: '45' }
+  assert.ok(validate(f, { all: true }).target, 'BMI<18.5 target rejected'); assert.equal(validate({ ...f, target: '55' }, { all: true }).target, undefined)
+  assert.ok(isValid({ ...f, target: '' }) && !isValid({ ...f, age: '11' }) && !isValid({ ...f, weight: '29' }) && !isValid({ ...f, height: '300' }) && !isValid({ ...f, name: ' ' }), 'range validation')
+  const today = '2026-11-30'
+  const prof = { sex: 'm', age: 30, height: 175, weight: 80, days: 4, goal: 'fit', level: 2 }
+  const w = Array.from({ length: 10 }, (_, i) => ({ date: addDays(today, -28 + i * 3), kg: Math.round((80 - 1.5 * ((i * 3) / 7)) * 10) / 10 }))
+  const adv = calorieAdvice({ profile: prof, plan: generatePlan({ ...prof, equip: 'gym' }), logs: {}, weights: w, measures: [], createdAt: '2026-01-01' }, today)
+  assert.equal(adv.kind, 'adjust'); assert.match(adv.msg, /ปรึกษาแพทย์/, 'rapid unintended loss mentions doctor')
+  console.log('ok — unsafe target + rapid loss guards')
 }

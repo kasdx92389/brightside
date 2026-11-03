@@ -3,12 +3,15 @@ import { dateKey, dayIdx, targets } from './lib/calc.js'
 import { achievements, addDays, inDeload } from './lib/coach.js'
 import { byId } from './data/exercises.js'
 import { stamp } from './lib/merge.js'
+import { MOOD_BY, NOTE_MAX } from './lib/mood.js'
+import { fixPlan } from './lib/safety.js'
+import { sanitizeState } from './lib/sanitize.js'
 
 const KEY = 'brightside:v1'
 const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
 
 const load = () => {
-  try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY)) } } catch { return EMPTY }
+  try { return { ...EMPTY, ...sanitizeState(JSON.parse(localStorage.getItem(KEY)), dateKey()) } } catch { return EMPTY }
 }
 let state = load()
 const subs = new Set()
@@ -44,6 +47,12 @@ export const saveProfile = (profile) =>
 // ปรับความหนักของ "น้ำหนักที่แนะนำ" ตามที่ผู้ใช้กดว่าหนักไป/เบาไป (ตัวคูณ 0.5–1.5 เก็บในโปรไฟล์ ซิงก์ข้ามเครื่อง)
 export const setLoadAdj = (v) => update((s) => ({ ...s, profile: { ...s.profile, loadAdj: Math.min(1.5, Math.max(0.5, Math.round(v * 100) / 100)) } }))
 
+// ปรับเป้าแคลอรี่ตามน้ำหนักที่เปลี่ยนจริง (±300 kcal สะสม ปัดทีละ 50) · kcalAdjAt = วันที่ปรับ ใช้ให้รอ 2 สัปดาห์ก่อนประเมินใหม่
+export const setKcalAdj = (v) => update((s) => ({ ...s, profile: { ...s.profile, kcalAdj: Math.max(-300, Math.min(300, Math.round(v / 50) * 50)), kcalAdjAt: dateKey() } }))
+
+// แทนท่าที่ไม่เหมาะกับอายุ/คัดกรอง/ตั้งครรภ์/BMI ด้วยท่าปลอดภัยในกลุ่มเดียวกัน (ส่วนอื่นของแผนไม่เปลี่ยน)
+export const fixPlanSafety = () => update((s) => (s.plan && s.profile ? { ...s, plan: { ...fixPlan(s.plan, s.profile), source: 'custom' } } : s))
+
 export const setPlan = (plan) => update((s) => ({ ...s, plan: { ...plan, startedAt: dateKey() }, deloadUntil: null }))
 
 export const editDay = (i, fn) =>
@@ -71,6 +80,18 @@ export const patchSet = (date, exId, idx, patch, total) =>
     arr[idx] = { ...arr[idx], ...patch }
     return { ...log, startedAt: log.startedAt || Date.now(), skipped: false, sets: { ...log.sets, [exId]: arr } }
   })
+
+// อารมณ์ของวัน: patch = { m: id (null = ลบ), note } · บันทึกได้เฉพาะวันนี้และย้อนหลัง
+export const setMood = (date, patch) => {
+  if (date > dateKey()) return
+  patchLog(date, (log) => {
+    const cur = log.mood || {}
+    const m = patch.m !== undefined ? patch.m : cur.m
+    if (!MOOD_BY[m]) { const { mood, ...rest } = log; return rest }
+    const note = patch.note !== undefined ? String(patch.note).slice(0, NOTE_MAX).trim() : cur.note || ''
+    return { ...log, mood: { m, note, at: Date.now() } }
+  })
+}
 
 export const finishDay = (date, finished = true) =>
   patchLog(date, (log) => ({ ...log, finished, skipped: false, finishedAt: finished ? Date.now() : undefined }))
@@ -117,7 +138,9 @@ export const importData = (json) => update(() => {
   const d = JSON.parse(json)
   // กันไฟล์ผิดชนิด (JSON ที่ไม่ใช่ข้อมูลสำรอง) ล้างข้อมูลทั้งหมดโดยไม่รู้ตัว
   if (!d?.profile || !d.plan?.days || typeof d.logs !== 'object' || !Array.isArray(d.weights)) throw new Error('not a backup')
-  return { ...EMPTY, ...d }
+  const clean = sanitizeState(d, dateKey())
+  if (!clean.profile || !clean.plan) throw new Error('invalid profile or plan') // ข้อมูลร่างกาย/แผนเสียเกินซ่อม → ไม่ล้างข้อมูลเดิม
+  return { ...EMPTY, ...clean }
 })
 export const resetAll = () => update(() => ({ ...EMPTY, createdAt: dateKey() }))
 

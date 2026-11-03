@@ -7,6 +7,7 @@ import Plan from './pages/Plan.jsx'
 import Library from './pages/Library.jsx'
 import Progress from './pages/Progress.jsx'
 import Me from './pages/Me.jsx'
+import Memory from './pages/Memory.jsx'
 import { ImportSheet } from './components/SharePlan.jsx'
 import { JoinSync } from './components/SyncPanel.jsx'
 import { startSync } from './lib/sync.js'
@@ -53,7 +54,7 @@ export default function App() {
   const toast = useCallback((m) => { setMsg(m); clearTimeout(toastT.current); toastT.current = setTimeout(() => setMsg(''), 2200) }, [])
   const startTimer = useCallback((sec, label = 'พัก') => setRest({ end: Date.now() + sec * 1000, label }), [])
   const stopRest = useCallback(() => setRest(null), [])
-  useEffect(() => { if (!param) scrollTo(0, 0) }, [page, param])
+  useEffect(() => { if (!param || page === 'memory') scrollTo(0, 0) }, [page, param])
   useEffect(startSync, [])
   // ลิงก์เชื่อมเครื่อง #/sync/รหัส: ถามยืนยันก่อน (ใช้ได้แม้เครื่องนี้ยังไม่มีโปรไฟล์)
   const join = page === 'sync' ? <JoinSync key={param} secret={param || ''} toast={toast} onDone={() => { location.hash = '#/today' }} /> : null
@@ -65,7 +66,8 @@ export default function App() {
     plan: <Plan toast={toast} />,
     import: <Plan toast={toast} />,
     lib: <Library openId={param} toast={toast} />,
-    progress: <Progress />,
+    progress: <Progress toast={toast} />,
+    memory: <Memory key={param} param={param} />,
     me: <Me toast={toast} />,
   }[page] || <Today startTimer={startTimer} toast={toast} />
 
@@ -74,7 +76,7 @@ export default function App() {
       <nav className="tabbar" aria-label="เมนูหลัก">
         <div className="brand"><img src="./icon.svg" alt="" /> <span>bright<b>side</b></span></div>
         {NAV.map(([k, label, Icon]) => (
-          <a key={k} className="tab" href={`#/${k}`} aria-current={page === k ? 'page' : undefined}><Icon aria-hidden="true" />{label}</a>
+          <a key={k} className="tab" href={`#/${k}`} aria-current={page === k || (k === 'progress' && page === 'memory') ? 'page' : undefined}><Icon aria-hidden="true" />{label}</a>
         ))}
       </nav>
       {saveFailed && <div className="warnbar" role="alert">บันทึกลงเครื่องไม่ได้ (พื้นที่เต็มหรือโหมดส่วนตัว) ข้อมูลจะหายเมื่อปิดหน้านี้ — ไปหน้า “ฉัน” แล้วกด “สำรอง”</div>}

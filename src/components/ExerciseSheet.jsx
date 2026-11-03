@@ -5,15 +5,18 @@ import { EQUIP, LEVELS, imgUrl } from '../data/exercises.js'
 import { DAY_TH } from '../lib/calc.js'
 import { useStore, editDay, personalBests, toggleFav } from '../store.js'
 import { parseRx } from '../data/plan.js'
+import { whyAvoid } from '../lib/safety.js'
 
 /** รายละเอียดท่า: ได้อะไร · วิธีเล่น · ห้ามพลาด · รูป 2 เฟรม · วิดีโอ */
 export default function ExerciseSheet({ ex, onClose, toast }) {
   const plan = useStore((s) => s.plan)
   const logs = useStore((s) => s.logs)
   const favs = useStore((s) => s.favs)
+  const profile = useStore((s) => s.profile)
   const [day, setDay] = useState(0)
   if (!ex) return <Sheet open={false} onClose={onClose} title="" />
 
+  const unfit = whyAvoid(ex.id, profile)
   const pb = personalBests(logs).find(([id]) => id === ex.id)?.[1]
   const lv = LEVELS.find(([n]) => n === ex.lv)[1]
   const add = () => {
@@ -40,6 +43,8 @@ export default function ExerciseSheet({ ex, onClose, toast }) {
         <span className="mute sm grow">{ex.en}</span>
         <button className="btn sm grow-0" aria-pressed={favs.includes(ex.id)} onClick={() => toggleFav(ex.id)}><Heart fill={favs.includes(ex.id) ? 'currentColor' : 'none'} /> {favs.includes(ex.id) ? 'โปรดแล้ว' : 'โปรด'}</button>
       </div>
+
+      {unfit && <div className="callout warn" role="alert"><TriangleAlert aria-hidden="true" /><div><b>ไม่แนะนำสำหรับคุณ</b><p>{unfit}</p></div></div>}
 
       <div className="callout">
         <Target aria-hidden="true" />

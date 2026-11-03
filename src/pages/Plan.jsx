@@ -10,18 +10,22 @@ import { byId } from '../data/exercises.js'
 import { PPL, generatePlan, minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dayIdx } from '../lib/calc.js'
 import { useStore, setPlan, editDay } from '../store.js'
+import { planLimits, whyAvoid } from '../lib/safety.js'
+import SafetyBanner from '../components/SafetyBanner.jsx'
 
 function Generator({ open, onClose, toast }) {
   const p = useStore((s) => s.profile)
   const [o, setO] = useState({ goal: p.goal, level: p.level, days: p.days, equip: p.equip })
   const set = (x) => setO((v) => ({ ...v, ...x }))
-  const preview = generatePlan(o)
+  const preview = generatePlan({ ...p, ...o }) // รวมอายุ/คัดกรอง/ตั้งครรภ์ เพื่อจำกัดท่าให้ปลอดภัย
+  const lim = planLimits(p)
   return (
     <Sheet open={open} onClose={onClose} title="ออกแบบโปรแกรมให้ฉัน">
       <div className="field"><span>เป้าหมาย</span><Choice label="เป้าหมาย" value={o.goal} onChange={(goal) => set({ goal })} options={GOALS} /></div>
       <div className="field"><span>ระดับประสบการณ์</span><Choice label="ระดับ" value={o.level} onChange={(level) => set({ level })} options={LEVELS} /></div>
       <div className="field"><span>วันที่ฝึกต่อสัปดาห์</span><Seg label="วัน" value={o.days} onChange={(days) => set({ days })} options={[[3, '3'], [4, '4'], [5, '5'], [6, '6']]} /></div>
       <div className="field"><span>อุปกรณ์ที่มี</span><Choice label="อุปกรณ์" value={o.equip} onChange={(equip) => set({ equip })} options={EQUIPS} /></div>
+      {lim.reasons.length > 0 && <p className="callout" role="status">{lim.reasons.join(' · ')}{o.level > lim.maxLevel && ` · ระบบจัดให้ไม่เกินระดับ ${lim.maxLevel}`}</p>}
       <section className="col" aria-live="polite" style={{ gap: '0.5rem' }}>
         <h3>ตัวอย่างโปรแกรม · {preview.name}</h3>
         {preview.days.map((d, i) => (
@@ -39,6 +43,7 @@ function Generator({ open, onClose, toast }) {
 
 export default function Plan({ toast }) {
   const plan = useStore((s) => s.plan)
+  const profile = useStore((s) => s.profile)
   const [gen, setGen] = useState(false)
   const [edit, setEdit] = useState(false)
   const [pick, setPick] = useState(null) // วันที่กำลังเพิ่มท่า
@@ -49,6 +54,8 @@ export default function Plan({ toast }) {
   const patchItem = (di, k, patch) => editDay(di, (d) => ({ ...d, items: d.items.map((it, n) => (n === k ? { ...it, ...patch } : it)) }))
   const removeItem = (di, k) => editDay(di, (d) => ({ ...d, items: d.items.filter((_, n) => n !== k) }))
   const addEx = (e) => {
+    const w = whyAvoid(e.id, profile)
+    if (w && !window.confirm(w + '\n\nเพิ่มท่านี้เข้าแผนอยู่ดีไหม?')) return
     const [sets, reps] = parseRx(e.rx)
     editDay(pick, (d) => ({ ...d, kind: 'train', name: d.kind === 'train' ? d.name : 'ฝึกเพิ่ม', focus: d.kind === 'train' ? d.focus : 'ฝึกเพิ่มเติม', items: [...d.items.filter((i) => i.id !== e.id), { id: e.id, sets, reps }] }))
     toast(`เพิ่ม ${e.th} แล้ว`)
@@ -61,6 +68,8 @@ export default function Plan({ toast }) {
         <div><span className="eyebrow">โปรแกรมปัจจุบัน</span><h1>{plan.name}</h1><span className="mute xs">รหัสแผน {planId(plan)}</span></div>
         <button className={`btn sm ${edit ? 'pri' : ''}`} onClick={() => setEdit(!edit)} aria-pressed={edit}><Pencil /> {edit ? 'เสร็จ' : 'แก้ไข'}</button>
       </header>
+
+      <SafetyBanner toast={toast} />
 
       <div className="two">
         <button className="btn pri" onClick={() => setGen(true)}><Sparkles /> ออกแบบให้</button>

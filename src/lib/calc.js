@@ -18,6 +18,21 @@ export const healthyRange = (cm) => [18.5, 22.9].map((b) => Math.round(b * (cm /
 export const bmr = ({ sex, weight, height, age }) =>
   10 * weight + 6.25 * height - 5 * age + (sex === 'f' ? -161 : 5)
 
+/**
+ * วัยรุ่น 12–17 ปี: พลังงานที่ต้องการโดยประมาณ (IOM DRI 2002/2005 สำหรับอายุ 9–18 ปี รวม +25 kcal เพื่อการเติบโต)
+ * Mifflin–St Jeor ตั้งขึ้นสำหรับผู้ใหญ่ จึงไม่ใช้กับวัยรุ่น · PA: ฝึก ≤4 วัน/สัปดาห์ = low active · ≥5 วัน = active (เลือกฝั่งต่ำไว้ก่อน เพราะวัยรุ่นยังโต กินเกินไปมีผลเรื้อรัง)
+ * หมายเหตุ: NASEM ออก DRI พลังงานฉบับปรับปรุงปี 2023 ที่ใช้ค่า PA ต่างจากนี้ในเด็ก/วัยรุ่น ค่านี้เป็นค่าประมาณเท่านั้น
+ */
+export function teenEER({ sex, weight: wt, height, age, days }) {
+  const h = height / 100
+  // สมการ IOM ตั้งสำหรับเด็กน้ำหนักปกติ: ถ้าน้ำหนักเกินมาก จะประเมินสูงเกินจริง (เช่น 140 กก. → 6,000 kcal) จึงใช้ได้ไม่เกินน้ำหนักที่ BMI 22 ของส่วนสูงนั้น
+  const weight = Math.min(wt, 22 * h * h)
+  const pa = (sex === 'f' ? [1.16, 1.31] : [1.13, 1.26])[days <= 4 ? 0 : 1]
+  return sex === 'f' ? 135.3 - 30.8 * age + pa * (10 * weight + 934 * h) + 25 : 88.5 - 61.9 * age + pa * (26.7 * weight + 903 * h) + 25
+}
+// พลังงานส่วนเพิ่มตามสถานะ: ตั้งครรภ์ไตรมาส 2 +340 · ไตรมาส 3 +452 (IOM) · ให้นมบุตร 6 เดือนแรก ≈ +330
+const PREG_ADD = { 1: 0, 2: 340, 3: 452, pp: 330 }
+
 const ACTIVITY = (days) => (days <= 2 ? 1.375 : days <= 4 ? 1.465 : 1.55)
 const r = (v, step) => Math.round(v / step) * step
 
@@ -27,9 +42,13 @@ const r = (v, step) => Math.round(v / step) * step
  */
 function adjust(p, b) {
   const teen = p.age < 18, senior = p.age >= 60, notes = []
+  const preg = !!p.preg && p.preg !== 'none'
   const say = (tone, text) => notes.push({ tone, text })
   let delta = 0, mode = 'maintain'
-  if (b < 18.5) {
+  if (preg) {
+    // ตั้งครรภ์/ให้นมบุตร: ไม่ขาดดุลไม่ว่าเลือกเป้าหมายใด พลังงานส่วนเพิ่มคิดใน targets()
+    say('warn', p.goal === 'lose' ? 'ช่วงตั้งครรภ์/ให้นมบุตร แอพไม่ตั้งขาดดุลแคลอรี่ แม้เลือกเป้าหมายลดไขมัน เน้นกินให้ครบและขยับร่างกายเบาๆ' : 'ช่วงตั้งครรภ์/ให้นมบุตร: ค่าพลังงานและสารอาหารเป็นค่าประมาณทั่วไป ควรให้สูติแพทย์/นักกำหนดอาหารกำหนดตามน้ำหนักที่ควรขึ้นของคุณ')
+  } else if (b < 18.5) {
     delta = p.goal === 'muscle' ? 400 : 300; mode = 'gain'
     say('info', `BMI ${b.toFixed(1)} ต่ำกว่าเกณฑ์ (<18.5) แอพจึงตั้งพลังงานให้เกินดุล ${delta} kcal เพื่อค่อยๆ เพิ่มน้ำหนัก แม้เลือกเป้าหมายอื่น ถ้าน้ำหนักน้อยผิดปกติหรือเบื่ออาหารต่อเนื่อง ควรปรึกษาแพทย์`)
   } else if (p.goal === 'lose') {
@@ -59,10 +78,13 @@ function adjust(p, b) {
 /** เป้าโภชนาการรายบุคคล — น้ำวันฝึกเพิ่ม 0.5 ลิตร (ดื่ม 400–600 มล. ก่อนฝึก 2 ชม. ตามแนวทาง ACSM) */
 export function targets(p) {
   const b = bmi(p.weight, p.height)
-  const tdee = bmr(p) * ACTIVITY(p.days)
+  const preg = !!p.preg && p.preg !== 'none'
+  const tdee = (p.age < 18 ? teenEER(p) : bmr(p) * ACTIVITY(p.days)) + (preg ? PREG_ADD[p.preg] || 0 : 0)
   const { delta, mode, notes } = adjust(p, b)
   const floor = p.sex === 'f' ? 1200 : 1500
-  const kcal = Math.max(floor, r(tdee + delta, 50))
+  // ผู้ใช้กดยืนยันปรับเป้าตามน้ำหนักที่เปลี่ยนจริง (lib/review.js) — จำกัด ±300 และไม่ใช้กับอายุ <18
+  const adj = p.age < 18 || preg ? 0 : Math.max(-300, Math.min(300, Number(p.kcalAdj) || 0))
+  const kcal = Math.max(floor, r(tdee + delta + adj, 50))
   // BMI > 25 คิดโปรตีนจากน้ำหนักปรับ (ไม่ให้เกินจริงในคนน้ำหนักมาก)
   const ibw = 22 * (p.height / 100) ** 2
   const refW = b > 25 ? ibw + 0.25 * (p.weight - ibw) : p.weight
@@ -71,13 +93,17 @@ export function targets(p) {
   const fat = Math.max(r((kcal * 0.27) / 9, 1), Math.round(refW * 0.6))
   const carb = Math.max(100, r((kcal - ((protein[0] + protein[1]) / 2) * 4 - fat * 9) / 4, 5))
   const base = Math.min(3.5, Math.max(p.age >= 60 ? 1.6 : 1.8, p.weight * 0.033))
-  const glasses = (train) => Math.ceil((base + (train ? 0.5 : 0)) * 4) // แก้ว 250 มล.
+  if (adj) notes.unshift({ tone: 'info', text: `เป้าพลังงานถูกปรับ ${adj > 0 ? '+' : ''}${adj} kcal จากสูตรมาตรฐาน ตามน้ำหนักที่เปลี่ยนจริงของคุณ (ยกเลิกได้ที่หน้า “ความคืบหน้า”)` })
+  const hydr = preg ? (p.preg === 'pp' ? 0.7 : 0.3) : 0 // ตั้งครรภ์/ให้นมบุตรต้องการน้ำมากขึ้น (ค่าประมาณ)
+  if (['heart', 'chronic', 'meds'].some((k) => (p.screen || []).includes(k))) notes.push({ tone: 'warn', text: 'คุณระบุว่ามีโรคเรื้อรัง/ยาประจำ ค่าแคลอรี่ โปรตีน น้ำ และโซเดียมในแอพเป็นค่ามาตรฐานทั่วไป ควรปรึกษาแพทย์หรือนักกำหนดอาหารก่อนยึดเป็นเป้า (เช่น โรคไต ต้องจำกัดโปรตีน/น้ำ เบาหวาน ต้องคุมคาร์บ)' })
+  notes.push({ tone: 'info', text: 'โปรตีนสูงเกิน ~1.6 g/กก. ไม่จำเป็นสำหรับคนส่วนใหญ่ ผู้ที่เป็นโรคไตควรปรึกษาแพทย์ก่อนเพิ่มโปรตีน' })
+  const glasses = (train) => Math.ceil((base + hydr + (train ? 0.5 : 0)) * 4) // แก้ว 250 มล.
   return {
     tdee: Math.round(tdee), kcal, protein, fat, carb, mode, delta, bmi: b, notes,
     fiber: Math.ceil((kcal / 1000) * 14), // 14 g ต่อ 1,000 kcal
     sugar: r((kcal * 0.05) / 4, 1), // น้ำตาลเติม ≤ 5% ของพลังงาน (WHO)
     sodium: 2000,
-    water: Math.round(base * 10) / 10, waterTrain: Math.round((base + 0.5) * 10) / 10, glasses,
+    water: Math.round((base + hydr) * 10) / 10, waterTrain: Math.round((base + hydr + 0.5) * 10) / 10, glasses,
   }
 }
 

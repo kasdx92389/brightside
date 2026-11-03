@@ -1,4 +1,5 @@
 import { byId } from './exercises.js'
+import { planLimits } from '../lib/safety.js'
 
 const t = (id, sets, reps) => ({ id, sets, reps })
 const train = (name, focus, items) => ({ kind: 'train', name, focus, items })
@@ -33,15 +34,15 @@ const POOL = {
   triceps: ['triceps-pushdown', 'close-grip-bench', 'overhead-triceps-ext', 'bench-dips', 'skullcrusher', 'cable-overhead-triceps', 'dips-triceps', 'triceps-kickback'],
   vertPull: ['pullup', 'lat-pulldown', 'vbar-pulldown', 'chinup', 'inverted-row', 'reverse-grip-pulldown', 'assisted-pullup'],
   horizPull: ['barbell-row', 'seated-cable-row', 'db-row', 'inverted-row', 'superman', 'machine-row', 'tbar-row', 'bent-db-row', 'cable-one-arm-row'],
-  rearDelt: ['face-pull', 'reverse-fly', 'superman', 'reverse-pec-deck', 'band-pull-apart'],
+  rearDelt: ['face-pull', 'reverse-fly', 'superman', 'reverse-pec-deck', 'band-pull-apart', 'towel-pull-apart', 'wall-angel'],
   biceps: ['barbell-curl', 'db-curl', 'hammer-curl', 'ez-bar-curl', 'cable-curl', 'incline-db-curl', 'preacher-curl', 'concentration-curl'],
   squat: ['barbell-squat', 'goblet-squat', 'leg-press', 'bodyweight-squat', 'db-squat', 'smith-squat', 'hack-squat', 'chair-squat'],
   hinge: ['rdl-barbell', 'db-rdl', 'glute-bridge', 'hyperextension', 'trap-bar-deadlift', 'cable-pull-through'],
   lunge: ['db-lunge', 'db-step-up', 'jump-squat', 'bodyweight-squat', 'reverse-lunge', 'split-squat', 'walking-lunge'],
-  legIso: ['leg-curl', 'leg-extension', 'glute-bridge', 'seated-leg-curl', 'hip-abduction', 'hip-adduction'],
-  calves: ['calf-raise', 'jump-squat', 'seated-calf-raise'],
-  glute: ['hip-thrust', 'glute-bridge', 'cable-kickback', 'monster-walk'],
-  core1: ['crunch', 'cable-crunch', 'reverse-crunch', 'dead-bug', 'bicycle-crunch', 'sit-up', 'machine-crunch', 'oblique-crunch'],
+  legIso: ['leg-curl', 'leg-extension', 'glute-bridge', 'seated-leg-curl', 'hip-abduction', 'hip-adduction', 'standing-side-leg-raise'],
+  calves: ['calf-raise', 'jump-squat', 'seated-calf-raise', 'standing-calf-raise'],
+  glute: ['hip-thrust', 'glute-bridge', 'cable-kickback', 'monster-walk', 'donkey-kick'],
+  core1: ['crunch', 'cable-crunch', 'reverse-crunch', 'dead-bug', 'bicycle-crunch', 'sit-up', 'machine-crunch', 'oblique-crunch', 'standing-knee-raise'],
   core2: ['plank', 'lying-leg-raise', 'side-bridge', 'russian-twist', 'pallof-press', 'bird-dog', 'woodchop'],
   proPush: ['plyo-pushup', 'push-press', 'handstand-pushup', 'single-arm-pushup', 'ring-dips'],
   proPull: ['muscle-up', 'barbell-deadlift', 'deficit-deadlift'],
@@ -78,9 +79,15 @@ export function parseRx(rx) {
   return m ? [Number(m[1]), m[2]] : [1, rx]
 }
 
-/** @param {{goal:'lose'|'fit'|'muscle', level:1|2|3, days:3|4|5|6, equip:'gym'|'db'|'home'}} o */
-export function generatePlan({ goal, level, days, equip }) {
-  const ok = (e) => ALLOWED[equip].includes(e.eq) && e.lv <= level
+/**
+ * @param {{goal:'lose'|'fit'|'muscle', level:1|2|3, days:3|4|5|6, equip:'gym'|'db'|'home', age?:number, weight?:number, height?:number, screen?:string[], preg?:string}} o
+ * ถ้าส่งโปรไฟล์มาด้วย (อายุ/น้ำหนัก/ส่วนสูง/คัดกรอง/ตั้งครรภ์) ตัวออกแบบจะจำกัดระดับและเลี่ยงท่าที่ไม่เหมาะ (lib/safety.js)
+ */
+export function generatePlan(o) {
+  const { goal, days, equip } = o
+  const limits = planLimits(o)
+  const level = Math.min(o.level, limits.maxLevel)
+  const ok = (e) => ALLOWED[equip].includes(e.eq) && e.lv <= level && !limits.avoid.has(e.id)
   const use = {} // จำนวนครั้งที่ใช้ท่าในสัปดาห์นี้ → สลับท่าเมื่อวันซ้ำ
   const beginnerGym = level === 1 && equip === 'gym'
   const pick = (pool, taken) => {
@@ -115,6 +122,7 @@ export function generatePlan({ goal, level, days, equip }) {
       taken.push(e.id)
       return [t(e.id, ...volume(e))]
     })
+    if (limits.balance && byId['single-leg-balance'] && !taken.includes('single-leg-balance')) { const [bs, br] = parseRx(byId['single-leg-balance'].rx); items.push(t('single-leg-balance', bs, br)) } // 65+: ฝึกทรงตัวทุกวันฝึก (ESSA 2025)
     if (goal !== 'muscle') {
       const c = pick('cardio', taken)
       if (c) items.push(t(c.id, 1, cardioMin))
