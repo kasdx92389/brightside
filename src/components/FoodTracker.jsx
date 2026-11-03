@@ -306,7 +306,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
     : 'จังหวะดี ดื่มต่อเนื่องตลอดวัน อย่ารอจนกระหาย'
 
   return (
-    <details className="card nutri" open={isToday}>
+    <details className="card nutri" open>
       <summary className="row between" style={{ cursor: 'pointer', minHeight: 44 }}>
         <h2>อาหารและน้ำ</h2>
         <span className="mute sm">{Math.round(water * ML).toLocaleString()}/{(wg * ML).toLocaleString()} มล. · {Math.round(f.kcal || 0).toLocaleString()}/{t.kcal.toLocaleString()} kcal</span>
