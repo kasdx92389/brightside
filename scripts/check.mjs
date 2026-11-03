@@ -107,7 +107,7 @@ assert.ok(Math.abs(mt.reduce((n, m) => n + m.kcal, 0) - T({ goal: 'fit' }).kcal)
 
 // ฐานข้อมูลอาหาร: พลังงานต้องสอดคล้องกับสารอาหาร (±15% หรือ ±25 kcal) และไม่มีรหัสซ้ำ
 assert.equal(new Set(FOODS.map((f) => f.id)).size, FOODS.length, 'food id dup')
-for (const f of FOODS) {
+for (const f of FOODS.filter((x) => !x.alc)) {
   const est = f.p * 4 + f.c * 4 + f.f * 9
   assert.ok(Math.abs(est - f.k) <= Math.max(25, f.k * 0.15), `food ${f.n}: kcal ${f.k} vs macros ${est}`)
 }

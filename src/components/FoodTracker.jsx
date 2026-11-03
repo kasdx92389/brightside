@@ -17,7 +17,7 @@ const slotNow = () => { const h = new Date().getHours(); return h < 10 ? 0 : h <
 export function suggestFoods(remP, remK) {
   if (remP < 10) return []
   const seen = new Set()
-  return FOODS.filter((f) => ['meat', 'dairy', 'plant', 'meal'].includes(f.cat) && f.p >= 8 && f.p <= remP + 10 && f.k <= Math.max(150, remK))
+  return FOODS.filter((f) => ['meat', 'dish', 'dairy', 'plant', 'meal'].includes(f.cat) && f.p >= 8 && f.p <= remP + 10 && f.k <= Math.max(150, remK))
     .sort((a, b) => b.p / b.k - a.p / a.k)
     .filter((f) => !seen.has(f.cat) && seen.add(f.cat))
     .slice(0, 3)
