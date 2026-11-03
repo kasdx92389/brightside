@@ -6,6 +6,14 @@ export const getTextScale = () => {
 }
 export const applyTextScale = (v = getTextScale()) => { document.documentElement.style.fontSize = v + '%' }
 export const setTextScale = (v) => {
-  try { localStorage.setItem(KEY, JSON.stringify({ scale: v })) } catch { /* โหมดส่วนตัว: ใช้เฉพาะรอบนี้ */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ ...JSON.parse(localStorage.getItem(KEY) || '{}'), scale: v })) } catch { /* โหมดส่วนตัว: ใช้เฉพาะรอบนี้ */ }
   applyTextScale(v)
+}
+
+// วิธีใส่ปริมาณอาหาร: 'u' ตามหน่วย · 'g' ชั่งเป็นกรัม (คนมีเครื่องชั่งจะได้เปิดเป็นกรัมทุกครั้ง)
+export const getWeighMode = () => {
+  try { return JSON.parse(localStorage.getItem(KEY))?.weigh === 'g' ? 'g' : 'u' } catch { return 'u' }
+}
+export const setWeighMode = (m) => {
+  try { localStorage.setItem(KEY, JSON.stringify({ ...JSON.parse(localStorage.getItem(KEY) || '{}'), weigh: m })) } catch { /* ใช้เฉพาะรอบนี้ */ }
 }

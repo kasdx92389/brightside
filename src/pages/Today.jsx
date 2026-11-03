@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Moon, SkipForward, HeartPulse, ArrowLeftRight } from 'lucide-react'
+import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, Moon, SkipForward, HeartPulse, ArrowLeftRight, Lightbulb } from 'lucide-react'
 import { Ring, Media } from '../components/ui.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
 import SwapSheet from '../components/SwapSheet.jsx'
@@ -8,6 +8,8 @@ import { byId } from '../data/exercises.js'
 import { minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dateKey, dayIdx } from '../lib/calc.js'
 import { isTimed, timedSeconds, overloadHint, deloadDue, inDeload } from '../lib/coach.js'
+import { suggestKg, effectiveWeight, LOAD_UNIT } from '../lib/loads.js'
+import { bmi as calcBmi } from '../lib/calc.js'
 import {
   useStore, editDay, patchSet, finishDay, skipDay, toggleWarm, startDeload, endDeload,
   setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak,
@@ -23,13 +25,15 @@ function weekOf(d) {
   return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return x })
 }
 
-function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, onSwap, startTimer, rest }) {
+function ExRow({ it, ex, log, date, logs, profile, open, onToggle, onInfo, onSwap, startTimer, rest }) {
   const sets = setsOf(log, it)
   const done = sets.filter((s) => s.done).length
   const timed = isTimed(it.reps)
   const secs = timed ? timedSeconds(it.reps) : null
   const up = timed ? null : overloadHint(logs, it.id, it.reps, date)
   const hint = up ? String(up.kg) : lastKg(logs, it.id, date)
+  // ยังไม่เคยบันทึกท่านี้ → แนะนำน้ำหนักเริ่มต้นจากตัวผู้ใช้ (เป็น placeholder เท่านั้น ไม่เติมค่าให้เอง)
+  const sug = !hint && !timed ? suggestKg(ex, profile) : null
 
   const tick = (i) => {
     const s = sets[i]
@@ -52,6 +56,12 @@ function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, onSwap, startT
       {open && (
         <div className="sets">
           {up && <p className="nudge"><TrendingUp aria-hidden="true" /><span>ครั้งก่อนทำครบที่ {up.was} กก. — ครั้งนี้ลองเพิ่มเป็น <b>{up.kg} กก.</b></span></p>}
+          {sug && (
+            <p className="nudge">
+              <Lightbulb aria-hidden="true" />
+              <span>ครั้งแรกของท่านี้ แนะนำเริ่มที่ <b>~{sug.kg} กก. {LOAD_UNIT[sug.tag]}</b> (ตามน้ำหนัก {profile.weight} กก. · BMI {calcBmi(profile.weight, profile.height).toFixed(1)}{profile.sex === 'f' ? ' · หญิง' : ''}{profile.age ? ` · ${profile.age} ปี` : ''}) เลือกน้ำหนักที่ทำได้ {String(it.reps).match(/\d+(?:–\d+)?/)?.[0]} ครั้งโดยยังเหลือแรงอีก 2–3 ครั้ง {sug.tag === 'b' && 'บาร์เปล่ามาตรฐานหนัก ~20 กก. ถ้าหนักไป เริ่มด้วยดัมเบลก่อน '}ถ้าเบาหรือหนักไปให้ปรับเอง ท่าที่ไม่คุ้นให้เริ่มเบากว่านี้</span>
+            </p>
+          )}
           {!timed && <div className="set-labels"><span>เซ็ต</span><span>น้ำหนัก (กก.)</span><span>ครั้ง</span><span /></div>}
           {sets.map((s, i) => (
             <div className="set" key={i}>
@@ -60,7 +70,7 @@ function ExRow({ it, ex, log, date, logs, open, onToggle, onInfo, onSwap, startT
                 <div className="grow mute" style={{ gridColumn: '2 / 4' }}>เป้าหมาย {it.reps}</div>
               ) : (
                 <>
-                  <input className="input" type="number" inputMode="decimal" min="0" step="0.5" placeholder={hint || '–'} aria-label={`เซ็ต ${i + 1} น้ำหนัก กิโลกรัม`} value={s.kg ?? ''} onChange={(e) => patchSet(date, it.id, i, { kg: e.target.value }, it.sets)} />
+                  <input className="input" type="number" inputMode="decimal" min="0" step="0.5" placeholder={hint || (sug ? String(sug.kg) : '–')} aria-label={`เซ็ต ${i + 1} น้ำหนัก กิโลกรัม`} value={s.kg ?? ''} onChange={(e) => patchSet(date, it.id, i, { kg: e.target.value }, it.sets)} />
                   <input className="input" type="number" inputMode="numeric" min="0" placeholder={firstInt(it.reps) || '–'} aria-label={`เซ็ต ${i + 1} จำนวนครั้ง`} value={s.reps ?? ''} onChange={(e) => patchSet(date, it.id, i, { reps: e.target.value }, it.sets)} />
                 </>
               )}
@@ -183,7 +193,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
             <ExRow
               key={`${it.id}-${n}`} it={it} ex={byId[it.id]} log={log} logs={logs} date={date}
               open={open === n} onToggle={() => setOpen(open === n ? null : n)} onInfo={() => setInfo(byId[it.id])} onSwap={() => setSwap(byId[it.id])}
-              startTimer={startTimer} rest={profile.rest}
+              startTimer={startTimer} rest={profile.rest} profile={profile}
             />
           ))}
         </ul>

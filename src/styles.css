@@ -513,8 +513,13 @@ button.eat-b:active { background: var(--s3); }
 .xbtn { width: 44px; height: 44px; flex: none; }
 .xbtn svg { width: 18px; height: 18px; }
 .xk { display: block; }
-.xval { min-width: 5.5rem; text-align: center; font-size: 0.875rem; }
-.xval b { font-size: 1.125rem; }
+.xval { display: flex; align-items: baseline; justify-content: center; gap: 0.25rem; min-width: 5.5rem; font-size: 0.875rem; }
+.xin { width: 4.2ch; min-width: 0; border: 0; outline: 0; background: none; text-align: right; font: 600 1.125rem/1.2 var(--num); font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.xin::-webkit-outer-spin-button, .xin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.xin:focus { box-shadow: 0 2px 0 var(--pri); }
+.xunit { min-height: 32px; padding: 0; color: var(--pri-fg); font-size: 0.8125rem; text-decoration: underline; text-underline-offset: 2px; }
+.check { display: flex; align-items: center; gap: 0.625rem; min-height: 44px; font-size: 0.9375rem; }
+.check input { width: 22px; height: 22px; accent-color: var(--pri); flex: none; }
 .qfoot { position: sticky; bottom: calc(-1.25rem - env(safe-area-inset-bottom)); z-index: 1; margin-inline: -1.25rem; padding: 0.625rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom)); background: var(--s1); border-top: 1px solid var(--line); }
 .qadd { width: 100%; }
 dialog:focus { outline: none; }

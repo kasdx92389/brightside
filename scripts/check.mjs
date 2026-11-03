@@ -5,8 +5,12 @@ import { generatePlan, PPL } from '../src/data/plan.js'
 import { byId, EXERCISES } from '../src/data/exercises.js'
 import { FOODS, ADDONS, addonById, suggestAddons, matchName } from '../src/data/foods.js'
 import { unitInfo, fmtAmt } from '../src/lib/units.js'
+import { suggestKg, effectiveWeight, hasSuggestion } from '../src/lib/loads.js'
+import { EXERCISES as ALL_EX } from '../src/data/exercises.js'
 import { mealTargets } from '../src/lib/calc.js'
-import { addFood, removeFood, updateFood, getState } from '../src/store.js'
+import { addFood, removeFood, updateFood, getState, addMyFood, removeMyFood } from '../src/store.js'
+import { gramsPerUnit, gramInfo, addonGw } from '../src/data/grams.js'
+import { merge } from '../src/lib/merge.js'
 import { overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
 
 // BMI ตามตัวอย่างใน Artifact (67.95 กก. / 168 ซม.)
@@ -152,3 +156,60 @@ assert.deepEqual([getState().logs[D].food.kcal, getState().logs[D].food.protein,
 updateFood(D, 9, { id: 'z', n: 'z', q: 1, s: 0, k: 1, p: 1, c: 1, f: 1 })
 assert.equal(getState().logs[D].food.kcal, 150)
 console.log('ok — nutrition')
+
+// โหมดชั่งกรัม: ทุกเมนูมีน้ำหนักต่อหน่วย (ความหนาแน่นพลังงานไม่เพี้ยน) · เครื่องปรุงทุกตัวมีกรัมต่อหน่วย · แปลงกรัม↔ตัวคูณถูกต้อง · เมนูของฉัน
+{
+  for (const f of FOODS) {
+    const g = gramsPerUnit(f)
+    assert.ok(g > 0, 'no grams: ' + f.n)
+    const dens = (f.k / g) * 100
+    assert.ok(dens >= 0 && dens <= 760, `density ${f.n}: ${Math.round(dens)} kcal/100g (${g} g)`)
+  }
+  for (const a of ADDONS) {
+    const g = addonGw(a)
+    assert.ok(g > 0 && a.k / g <= 9.5, 'addon grams ' + a.n + ' ' + g + ' -> ' + (a.k / g).toFixed(1) + ' kcal/g')
+  }
+  const egg = FOODS.find((x) => x.n === 'ไข่ต้ม')
+  const gi = gramInfo(gramsPerUnit(egg)) // 50 g ต่อฟอง
+  assert.deepEqual([gi.word, gi.base, gi.step], ['g', 50, 5])
+  assert.equal(Math.round(egg.k * (100 / gi.base)), 150, '100 g ของไข่ต้ม = 2 ฟอง = 150 kcal')
+  assert.equal(gramsPerUnit(FOODS.find((x) => x.n === 'อกไก่ต้ม/ย่าง')), 100) // หน่วยเป็นกรัมอยู่แล้ว
+  assert.ok(gramInfo(13).step === 1 && gramInfo(250).step === 10 && gramInfo(60).presets.length >= 4)
+  // เมนูของฉัน: เพิ่ม/ลบ + ซิงก์ (merge) ไม่ทำให้หาย
+  addMyFood({ id: 'my-t', n: 'ซอสบ้าน', u: '100 g', k: 120, p: 2, c: 20, f: 3 })
+  assert.equal(getState().myFoods.length, 1)
+  const merged = merge({ ...getState(), mod: { myFoods: 2 } }, { ...getState(), myFoods: [], mod: { myFoods: 1 } })
+  assert.equal(merged.myFoods.length, 1, 'newer myFoods wins')
+  const merged2 = merge({ ...getState(), myFoods: [], mod: { myFoods: 1 } }, { ...getState(), mod: { myFoods: 5 } })
+  assert.equal(merged2.myFoods.length, 1, 'remote newer myFoods wins')
+  removeMyFood('my-t')
+  assert.equal(getState().myFoods.length, 0)
+}
+
+// น้ำหนักเริ่มต้นแนะนำ: ครอบคลุมท่าที่มีน้ำหนักทุกท่า · ทิศทางสมเหตุสมผล · ค่าไม่เพี้ยน
+{
+  const byId2 = Object.fromEntries(ALL_EX.map((e) => [e.id, e]))
+  const weighted = ALL_EX.filter((e) => ['db', 'bb', 'cable', 'machine'].includes(e.eq) && e.g !== 'cardio' && !/นาที|เมตร/.test(e.rx) && e.id !== 'glute-ham-raise') // glute-ham-raise ใช้น้ำหนักตัว
+  const missing = weighted.filter((e) => !hasSuggestion(e.id)).map((e) => e.id)
+  assert.deepEqual(missing, [], 'ท่าที่ยังไม่มีน้ำหนักแนะนำ: ' + missing)
+  assert.ok(Object.keys(byId2).length && ALL_EX.every((e) => !hasSuggestion(e.id) || ['db', 'bb', 'cable', 'machine'].includes(e.eq)), 'suggestion only for weighted equipment')
+  const man = { weight: 70, height: 175, sex: 'm', age: 28, level: 1 }
+  const S = (id, p = man) => suggestKg(byId2[id], p).kg
+  assert.ok(S('barbell-squat') >= 25 && S('barbell-squat') <= 45, 'squat ~35 for 70kg male: ' + S('barbell-squat'))
+  assert.ok(S('barbell-bench') <= S('barbell-squat') + 5 && S('db-curl') <= 8 && S('lat-pulldown') >= 25, 'sane ratios')
+  assert.ok(S('db-bench-press', { ...man, sex: 'f' }) < S('db-bench-press'), 'female lighter')
+  assert.ok(S('db-bench-press', { ...man, age: 68 }) < S('db-bench-press'), 'senior lighter')
+  assert.ok(S('db-bench-press', { ...man, age: 15 }) < S('db-bench-press'), 'teen lighter')
+  assert.ok(S('lat-pulldown', { ...man, level: 3 }) > S('lat-pulldown'), 'advanced heavier')
+  const big = { ...man, weight: 130 }
+  assert.ok(S('leg-press', big) > S('leg-press') && S('leg-press', big) < S('leg-press') * 130 / 70, 'heavy BMI: heavier but not proportional to fat')
+  assert.ok(effectiveWeight(120, 172) < 120 && effectiveWeight(60, 175) === 60 && effectiveWeight(40, 170) < 40, 'effective weight')
+  assert.equal(suggestKg(byId2['pushup'], man), null)
+  assert.equal(suggestKg(byId2['barbell-squat'], null), null)
+  for (const p of [man, { weight: 42, height: 165, sex: 'f', age: 22, level: 1 }, { weight: 120, height: 172, sex: 'm', age: 35, level: 3 }, { weight: 58, height: 155, sex: 'f', age: 75, level: 1 }]) {
+    for (const e of weighted) {
+      const r = suggestKg(e, p)
+      assert.ok(r && r.kg > 0 && r.kg <= 400 && Number.isFinite(r.kg), `load ${e.id} ${JSON.stringify(p)} -> ${r?.kg}`)
+    }
+  }
+}

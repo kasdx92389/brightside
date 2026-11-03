@@ -5,7 +5,7 @@ import { byId } from './data/exercises.js'
 import { stamp } from './lib/merge.js'
 
 const KEY = 'brightside:v1'
-const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], deloadUntil: null, createdAt: dateKey() }
+const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
 
 const load = () => {
   try { return { ...EMPTY, ...JSON.parse(localStorage.getItem(KEY)) } } catch { return EMPTY }
@@ -94,6 +94,9 @@ export const updateFood = (date, i, it) =>
     const items = log.food?.items || []
     return items[i] ? { ...log, food: { ...bump(bump(log.food, items[i], -1), it, 1), items: items.map((x, n) => (n === i ? it : x)) } } : log
   })
+// เมนูของฉัน: อาหารที่ผู้ใช้บันทึกไว้ใช้ซ้ำ { id, n, u ('100 g' | '1 หน่วย'), k, p, c, f ต่อหน่วยนั้น }
+export const addMyFood = (food) => update((s) => ({ ...s, myFoods: [...(s.myFoods || []), food] }))
+export const removeMyFood = (id) => update((s) => ({ ...s, myFoods: (s.myFoods || []).filter((x) => x.id !== id) }))
 export const removeFood = (date, i) =>
   patchLog(date, (log) => {
     const items = log.food?.items || []
