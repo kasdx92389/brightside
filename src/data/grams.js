@@ -66,6 +66,7 @@ const explicit = (u) => {
 /** กรัมของ "ทั้งหน่วยตั้งต้น" (เช่น 1 ชาม / 4 ชิ้น) — null ถ้าประเมินไม่ได้ (ให้ใช้ "กรอกเอง ต่อ 100 g") */
 export function gramsPerUnit(food) {
   const u = unitInfo(food)
+  if (food.gw > 0) return food.gw // เมนูที่คำนวณจากสูตร: น้ำหนักทั้งเสิร์ฟตามสูตร
   if (u.kind === 'g') return u.base // หน่วยเป็นกรัมอยู่แล้ว
   return NAME[food.n] ?? explicit(food.u) ?? CATWORD[`${food.cat}:${u.word}`] ?? null
 }

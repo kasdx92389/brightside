@@ -11,6 +11,7 @@ import { mealTargets } from '../src/lib/calc.js'
 import { addFood, removeFood, updateFood, getState, addMyFood, removeMyFood } from '../src/store.js'
 import { gramsPerUnit, gramInfo, addonGw } from '../src/data/grams.js'
 import { merge } from '../src/lib/merge.js'
+import { RECIPES, INGREDIENTS } from '../src/data/recipes.js'
 import { sodiumOf, addonSodium, itemSodium } from '../src/data/sodium.js'
 import { overloadHint, timedSeconds, goalProgress, deloadDue, inDeload, addDays, achievements } from '../src/lib/coach.js'
 
@@ -203,10 +204,36 @@ console.log('ok — nutrition')
   assert.ok(sodiumOf(F('ข้าวมันไก่')) > sodiumOf(F('อกไก่ต้ม/ย่าง')), 'dish > plain chicken')
   assert.ok(sodiumOf(F('โค้กซีโร่')) <= 60 && sodiumOf(F('บะหมี่กึ่งสำเร็จรูป')) >= 1500)
   assert.ok(addonSodium(A('น้ำปลา')) > 300 && addonSodium(A('เกลือ')) > 2000 && addonSodium(A('น้ำมันรำข้าว')) === 0, 'add-on sodium')
-  assert.equal(itemSodium({ id: F('ข้าวมันไก่').id, q: 2 }, { [F('ข้าวมันไก่').id]: F('ข้าวมันไก่') }), 2400, 'legacy item estimated by quantity')
+  assert.equal(itemSodium({ id: F('ข้าวมันไก่').id, q: 2 }, { [F('ข้าวมันไก่').id]: F('ข้าวมันไก่') }), sodiumOf(F('ข้าวมันไก่')) * 2, 'legacy item estimated by quantity')
   assert.equal(itemSodium({ id: 'x', q: 1, na: 123 }, {}), 123, 'recorded na wins')
   assert.equal(itemSodium({ id: 'gone', q: 1 }, {}), 0)
   assert.equal(sodiumOf({ n: 'x', cat: 'meal', k: 100, na: 55 }), 55, 'my food na wins')
+}
+
+// สูตรอาหาร: ค่าคำนวณสมเหตุสมผล · ไม่ซ้ำชื่อ · id/หน่วยของเมนูเดิมที่เคยบันทึกต้องไม่เปลี่ยน · ลำดับความหนักเบาถูกต้อง
+{
+  const names = RECIPES.map((r) => r.n)
+  assert.equal(new Set(names).size, names.length, 'recipe name dup: ' + names.filter((n, i) => names.indexOf(n) !== i))
+  const R = (n) => RECIPES.find((r) => r.n === n)
+  const F = (n) => FOODS.find((x) => x.n === n)
+  for (const r of RECIPES) {
+    assert.ok([r.k, r.p, r.c, r.f, r.na, r.gw].every(Number.isFinite) && r.k > 0 && r.gw > 20, 'recipe numbers ' + r.n)
+    assert.ok(r.k / r.gw >= 0.2 && r.k / r.gw <= 6.5, `recipe density ${r.n}: ${(r.k / r.gw).toFixed(2)} kcal/g`) // กระทั่งหมูกรอบ/น้ำมันท่วมก็ไม่เกิน ~6
+    assert.ok(Math.abs(r.p * 4 + r.c * 4 + r.f * 9 - r.k) <= Math.max(30, r.k * 0.15), 'recipe macros ' + r.n)
+  }
+  assert.ok(Object.values(INGREDIENTS).every((v) => v.length === 5 && v.every((x) => x >= 0)), 'ingredient rows')
+  // ลำดับ: ใส่เนื้อ/ไข่เพิ่ม ต้องมากกว่าผักล้วน · ไข่ดาวเพิ่ม ~ +100–200 kcal · หมูกรอบมันกว่าไก่
+  assert.ok(R('ผัดผักกาดขาวไก่สับ').k > R('ผัดผักกาดขาว').k && R('ผัดผักกาดขาวไข่').k > R('ผัดผักกาดขาว').k)
+  for (const p of ['หมู', 'ไก่', 'เนื้อ', 'กุ้ง']) {
+    const d = R(`ข้าวกะเพรา${p}ไข่ดาว`).k - R(`ข้าวกะเพรา${p}`).k
+    assert.ok(d >= 100 && d <= 200, `egg adds ${d}`)
+  }
+  assert.ok(R('ข้าวกะเพราหมูกรอบ').k > R('ข้าวกะเพราไก่').k && R('ก๋วยเตี๋ยวต้มยำหมู').na > 1000 && R('ผัดซีอิ๊วหมู').k > R('ก๋วยเตี๋ยวน้ำใสหมู').k)
+  // เมนูเดิมที่เคยบันทึกไว้ต้องยังเจอด้วย id เดิม (รายการเก่าแก้ไข/ประมาณโซเดียมได้)
+  for (const id of ['meal-ข้าวมันไก่', 'meal-ข้าวกะเพราไก่ไข่ดาว', 'meal-ก๋วยเตี๋ยวน้ำใสหมู', 'meal-ผัดไทยกุ้ง', 'meal-ส้มตำไทย', 'dish-ผัดผักกาดขาว', 'dish-ผัดผักกาดขาวไก่สับ', 'dish-แกงจืดวุ้นเส้น', 'dish-ต้มยำทะเลน้ำใส',
+    'plant-ผัดผักรวม', 'meat-ไข่เจียว', 'meat-ไข่ต้ม', 'meat-ปลาหมึกย่าง', 'noodle-ก๋วยเตี๋ยวไก่ น้ำใส', 'noodle-ราเมง', 'rice-ข้าวต้มไก่', 'rice-โจ๊กหมู (ไม่ใส่ไข่)', 'dish-น้ำพริกหมูสับ', 'drink-โค้กซีโร่', 'snack-ข้าวเหนียวมะม่วง']) assert.ok(FOODS.some((x) => x.id === id), 'old id lost: ' + id)
+  assert.ok(F('ข้าวมันไก่').u === '1 จาน' && F('ไข่เจียว').u === '1 ฟอง' && F('ราเมง').u === '1 ชาม', 'old units kept')
+  assert.ok(FOODS.length >= 590, 'food count ' + FOODS.length)
 }
 
 // น้ำหนักเริ่มต้นแนะนำ: ครอบคลุมท่าที่มีน้ำหนักทุกท่า · ทิศทางสมเหตุสมผล · ค่าไม่เพี้ยน

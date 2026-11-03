@@ -1,7 +1,9 @@
 // อาหารที่คนไทยกินบ่อย — ค่าประมาณต่อ 1 หน่วยบริโภค (อ้างอิงตารางคุณค่าอาหารไทยและ USDA ปัดเลข)
 // [ชื่อ, หน่วย, kcal, โปรตีน g, คาร์บ g, ไขมัน g]  ·  ค่าจริงขึ้นกับสูตรและปริมาณ ใช้เป็นแนวทางเท่านั้น
+import { RECIPES } from './recipes.js'
+
 export const FOOD_CATS = [
-  ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish', 'กับข้าว-แกง'],
+  ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish-stir', 'กับข้าว ผัด'], ['dish-fry', 'ทอด-ย่าง-ไข่'], ['dish-soup', 'แกง-ต้ม'], ['dish-salad', 'ยำ-ตำ-ลาบ'], ['dish-dip', 'น้ำพริก'],
   ['meal', 'จานเดียว'], ['world', 'ต่างชาติ'], ['dairy', 'นม-โปรตีน'], ['plant', 'ผัก-ผลไม้'],
   ['snack', 'ขนม-ของว่าง'], ['drink', 'เครื่องดื่ม'],
 ]
@@ -454,7 +456,20 @@ const MORE = [
   ]),
 ]
 
-export const FOODS = [...BASE, ...MORE]
+// ปรับค่าเมนูปรุงสำเร็จให้ตรงสูตรมาตรฐาน (recipes.js) + เพิ่มเมนูที่แตกแขนงจากสูตรเดียวกัน — id/ชื่อ/หน่วยของเมนูเดิมไม่เปลี่ยน (รายการที่เคยบันทึกยังเปิดแก้ได้)
+const BASE_ALL = [...BASE, ...MORE]
+const byName = new Map(BASE_ALL.map((f) => [f.n, f]))
+const fresh = new Map()
+for (const r of RECIPES) {
+  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw }
+  const ex = byName.get(r.n)
+  if (ex) Object.assign(ex, nut)
+  else fresh.set(r.n, { id: `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })
+}
+export const FOODS = [...BASE_ALL, ...fresh.values()]
+// หมวด "กับข้าว" มีหลายร้อยเมนู → แบ่งกลุ่มย่อยตามวิธีปรุง (ใช้เป็นตัวกรองในหน้าเลือกอาหาร; id/หมวดเดิมไม่เปลี่ยน)
+const dishGroup = (n) => (/น้ำพริก/.test(n) ? 'dish-dip' : /ยำ|ตำ|ลาบ|น้ำตก|พล่า/.test(n) ? 'dish-salad' : /แกง|ต้ม|ซุป/.test(n) ? 'dish-soup' : /ผัด|ฉ่า/.test(n) ? 'dish-stir' : 'dish-fry')
+for (const f of FOODS) if (f.cat === 'dish') f.grp = dishGroup(f.n)
 export const foodById = Object.fromEntries(FOODS.map((f) => [f.id, f]))
 
 // เครื่องปรุง/ส่วนเสริมที่ผู้ใช้กด "เพิ่มรายละเอียด" เลือกเองต่อรายการ — ค่าต่อ 1 หน่วย (ไม่ซ้ำกับที่รวมอยู่ในเมนูแล้ว)
