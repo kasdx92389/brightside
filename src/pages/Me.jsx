@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Save, Flame, Beef, Droplets, Download, Upload, Trash2, Timer, Wheat, Droplet, Info } from 'lucide-react'
+import { Save, Flame, Beef, Droplets, Download, Upload, Trash2, Timer, Wheat, Droplet, Info, Type } from 'lucide-react'
 import { BodyForm, GoalForm, toForm, toProfile, validate, isValid } from '../components/ProfileForms.jsx'
 import { BmiGauge, Seg } from '../components/ui.jsx'
 import { bmi, targets, mealTargets } from '../lib/calc.js'
 import { useStore, saveProfile, getState, importData, resetAll } from '../store.js'
 import SyncPanel from '../components/SyncPanel.jsx'
 import { useSync } from '../lib/sync.js'
+import { TEXT_SCALES, getTextScale, setTextScale } from '../lib/ui.js'
 
 const SOURCES = [
   ['ความถี่', 'ฝึกแต่ละกลุ่มกล้ามเนื้อ 2 ครั้ง/สัปดาห์ให้ผลดีกว่า 1 ครั้ง (Schoenfeld 2016) แต่ถ้าปริมาณรวมเท่ากัน ความถี่ที่สูงกว่านั้นแทบไม่เพิ่มผล (Schoenfeld 2019)'],
@@ -33,6 +34,7 @@ const MEALS = [ // ตัวอย่างเมนู 4 มื้อ (ปร�
 
 export default function Me({ toast }) {
   const profile = useStore((s) => s.profile)
+  const [scale, setScale] = useState(getTextScale)
   const linked = useSync().linked
   const [f, setF] = useState(() => toForm(profile))
   const [touched, setTouched] = useState({})
@@ -118,6 +120,12 @@ export default function Me({ toast }) {
         <h2 className="row"><Timer aria-hidden="true" /> เวลาพักระหว่างเซ็ต</h2>
         <Seg label="เวลาพัก" value={profile.rest} onChange={(rest) => saveProfile({ ...profile, rest })} options={[[60, '60 วิ'], [90, '90 วิ'], [120, '2 นาที'], [180, '3 นาที']]} />
         <p className="hint">ท่าหลักหนักๆ พัก 2–3 นาที (พักนานให้กล้ามโตและแรงขึ้นกว่าพัก 1 นาที) ท่าเสริมพัก 60–90 วินาทีได้</p>
+      </section>
+
+      <section className="card col">
+        <h2 className="row"><Type aria-hidden="true" /> ขนาดตัวอักษร</h2>
+        <Seg label="ขนาดตัวอักษร" value={scale} onChange={(v) => { setScale(v); setTextScale(v) }} options={TEXT_SCALES} />
+        <p className="hint">ตั้งค่าเฉพาะเครื่องนี้ ช่วยให้อ่านง่ายขึ้นสำหรับผู้ที่สายตาไม่ดี</p>
       </section>
 
       <SyncPanel toast={toast} />

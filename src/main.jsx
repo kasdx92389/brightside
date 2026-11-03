@@ -2,6 +2,9 @@ import { Component } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './styles.css'
+import { applyTextScale } from './lib/ui.js'
+
+applyTextScale()
 
 class Boundary extends Component {
   state = { err: null }

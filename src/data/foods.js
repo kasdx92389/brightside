@@ -518,3 +518,13 @@ export function suggestAddons(f) {
   if (f.cat === 'rice' || f.cat === 'meal') return ['extra-ไข่ดาว', 'sauce-น้ำปลา', 'sauce-พริกน้ำปลา']
   return []
 }
+
+// ค้นหา: ทุกคำที่พิมพ์ต้องอยู่ในชื่อ (ไม่สนช่องว่าง/ตัวพิมพ์) เช่น "ไข่ ต้ม" · มีคำอังกฤษพื้นฐาน เช่น egg, tea, coke
+const EN = [[/ไข่/, 'egg'], [/ไก่/, 'chicken'], [/หมู/, 'pork'], [/เนื้อ/, 'beef'], [/ปลา/, 'fish'], [/กุ้ง/, 'shrimp'], [/ข้าว/, 'rice'], [/ต้ม|โจ๊ก/, 'congee soup'],
+  [/ชา/, 'tea'], [/กาแฟ|ลาเต้|คาปู|มอคค่า|อเมริกาโน่|เอสเปรสโซ/, 'coffee'], [/นม|โยเกิร์ต/, 'milk yogurt'], [/ก๋วยเตี๋ยว|เส้น|บะหมี่|สปาเกตตี้|ราเมง|อุด้ง/, 'noodle'], [/โค้ก/, 'coke cola'],
+  [/เป๊ปซี่/, 'pepsi cola'], [/แม็กกี้/, 'maggi'], [/น้ำมัน/, 'oil'], [/น้ำตาล/, 'sugar'], [/น้ำปลา/, 'fish sauce'], [/ซอส/, 'sauce'], [/เบียร์/, 'beer'], [/ไวน์/, 'wine'], [/ผัก|สลัด/, 'vegetable salad'],
+  [/กล้วย|ส้ม|แอปเปิล|มะม่วง|ฝรั่ง|องุ่น|แตงโม/, 'fruit'], [/เค้ก|ไอศกรีม|คุกกี้|โดนัท/, 'dessert'], [/เบอร์เกอร์|พิซซ่า|ฟรายส์|นักเก็ต/, 'fast food']]
+export const matchName = (name, query) => {
+  const hay = (name + ' ' + EN.filter(([re]) => re.test(name)).map(([, w]) => w).join(' ')).toLowerCase().replace(/\s+/g, '')
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((t) => hay.includes(t))
+}

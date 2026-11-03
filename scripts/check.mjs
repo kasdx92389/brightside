@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { bmi, bmiBand, targets, healthyRange } from '../src/lib/calc.js'
 import { generatePlan, PPL } from '../src/data/plan.js'
 import { byId, EXERCISES } from '../src/data/exercises.js'
-import { FOODS, ADDONS, addonById, suggestAddons } from '../src/data/foods.js'
+import { FOODS, ADDONS, addonById, suggestAddons, matchName } from '../src/data/foods.js'
 import { unitInfo, fmtAmt } from '../src/lib/units.js'
 import { mealTargets } from '../src/lib/calc.js'
 import { addFood, removeFood, updateFood, getState } from '../src/store.js'
@@ -123,6 +123,11 @@ for (const f of FOODS.filter((x) => !x.alc)) {
   assert.deepEqual(U('นักเก็ตไก่').presets, [1, 4, 8, 12]) // 4 ชิ้น/หน่วย
   assert.equal(U('ข้าวเหนียวหมูปิ้ง').word, 'ชุด')
   assert.equal(fmtAmt(1.5), '1½')
+  // ค้นหา: หลายคำ · ไม่สนช่องว่าง · คำอังกฤษ
+  const found = (q) => FOODS.filter((f) => matchName(f.n, q)).map((f) => f.n)
+  assert.ok(found('ไข่ ต้ม').includes('ไข่ต้ม') && found('ข้าวต้ม ไก่').includes('ข้าวต้มไก่'))
+  assert.ok(found('coke').includes('โค้กซีโร่') && found('egg').length > 5 && found('tea').includes('ชาเย็น'))
+  assert.equal(found('zzzz').length, 0)
   for (const f of FOODS) { const u = unitInfo(f); assert.ok(u.base > 0 && u.min > 0 && u.presets.length && u.presets.every((p) => p >= u.min && p <= u.max), `unit ${f.n} (${f.u})`) }
 }
 

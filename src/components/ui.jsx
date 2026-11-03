@@ -57,11 +57,11 @@ export function Sheet({ open, onClose, title, children }) {
   const ref = useRef(null)
   useEffect(() => {
     const d = ref.current
-    if (open && !d.open) d.showModal()
+    if (open && !d.open) { d.showModal(); d.focus({ preventScroll: true }) } // โฟกัสที่กล่อง ไม่ใช่ปุ่มปิด (ไม่ให้มีกรอบฟ้าโผล่ตอนเปิด)
     if (!open && d.open) d.close()
   }, [open])
   return (
-    <dialog ref={ref} className="sheet" aria-label={title} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()}>
+    <dialog ref={ref} className="sheet" tabIndex={-1} aria-label={title} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()}>
       {open && (
         <div className="sheet-in">
           <div className="sheet-head">
