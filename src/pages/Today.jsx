@@ -151,7 +151,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           <span className="eyebrow">{isToday ? 'วันนี้' : DAY_TH[di]} · {longDate(d)}</span>
           <h1>สวัสดี {profile.name}</h1>
         </div>
-        <span className="badge l3" title="จำนวนวันต่อเนื่อง" style={{ minHeight: 32, padding: '0 12px', fontSize: '0.9375rem' }}><Flame size={16} className="streak-ico" /> <span className="num">{sr}</span> วัน</span>
+        <span className="badge l3" title="จำนวนวันต่อเนื่อง" style={{ minHeight: 32, padding: '0 12px', fontSize: '0.9375rem' }}><Flame size={15} className="streak-ico" /> <span className="num">{sr}</span> วัน</span>
       </header>
 
       <nav className="week" aria-label="สัปดาห์นี้">
