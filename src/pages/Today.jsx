@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Check, ChevronDown, Flame, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, TrendingDown, Moon, SkipForward, HeartPulse, ArrowLeftRight, Lightbulb } from 'lucide-react'
+import { Check, ChevronDown, Rocket, Info, BedDouble, PartyPopper, Undo2, Clock, Timer, TrendingUp, TrendingDown, Moon, SkipForward, HeartPulse, ArrowLeftRight, Lightbulb } from 'lucide-react'
 import { Ring, Media } from '../components/ui.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
 import SwapSheet from '../components/SwapSheet.jsx'
@@ -151,7 +151,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           <span className="eyebrow">{isToday ? 'วันนี้' : DAY_TH[di]} · {longDate(d)}</span>
           <h1>สวัสดี {profile.name}</h1>
         </div>
-        <span className="badge l3" title="จำนวนวันต่อเนื่อง" style={{ minHeight: 32, padding: '0 12px', fontSize: '0.9375rem' }}><Flame size={16} /> <span className="num">{sr}</span> วัน</span>
+        <span className="badge l3" title="จำนวนวันต่อเนื่อง" style={{ minHeight: 32, padding: '0 12px', fontSize: '0.9375rem' }}><Rocket size={16} /> <span className="num">{sr}</span> วัน</span>
       </header>
 
       <nav className="week" aria-label="สัปดาห์นี้">
