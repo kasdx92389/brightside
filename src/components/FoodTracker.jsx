@@ -299,7 +299,8 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
     for (let i = 0; i < 4; i++) for (const it of logs[addDays(date, -i)]?.food?.items || []) if (m[it.id] == null) m[it.id] = i
     return m
   }, [logs, date])
-  const sugg = useMemo(() => (isToday ? suggestFoods(remP, remK, { favs: foodFavs, recent, seed: `${date}:${shuf}` }) : []), [isToday, Math.round(remP / 5), Math.round(remK / 50), foodFavs, recent, date, shuf]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rem = { c: t.carb - (f.carb || 0), f: t.fat - (f.fat || 0), na: t.sodium - sodiumNow } // เหลือกินได้ (คาร์บ/ไขมัน g · โซเดียม มก.)
+  const sugg = useMemo(() => (isToday ? suggestFoods(remP, remK, { favs: foodFavs, recent, rem, seed: `${date}:${shuf}` }) : []), [isToday, Math.round(remP / 5), Math.round(remK / 50), Math.round(rem.c / 5), Math.round(rem.f / 3), Math.round(rem.na / 50), foodFavs, recent, date, shuf]) // eslint-disable-line react-hooks/exhaustive-deps
   const h = new Date().getHours() + new Date().getMinutes() / 60
   const expected = wg * clamp((h - 7) / 14, 0, 1) // ควรดื่มทยอยตลอดวัน 07:00–21:00
   const pace = !isToday ? '' : water >= wg ? 'ดื่มครบเป้าแล้ว เก่งมาก' : expected - water >= 1
@@ -336,7 +337,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
           <section className="nudge sugg-box">
             <span className="row" style={{ gap: '0.5rem' }}><Lightbulb aria-hidden="true" /> <b className="grow">โปรตีนยังขาด {Math.max(0, Math.round(remP))} g ลองกิน</b><button type="button" className="btn sm grow-0" onClick={() => setShuf(shuf + 1)} aria-label="สุ่มเมนูแนะนำใหม่"><Shuffle /> สุ่มใหม่</button></span>
             <span className="sugg">
-              {sugg.map((x) => <button key={x.id} className="btn sm" onClick={() => add(x, 1)}><span className="row" style={{ gap: '0.5rem' }}><Plus /> {x.n}</span><span className="mute">+{r1(x.p)} g{x.why ? <> · <Heart aria-hidden="true" style={{ width: 12, height: 12, verticalAlign: '-1px' }} /> {x.why}</> : ''}</span></button>)}
+              {sugg.map((x) => <button key={x.id} className="btn sm" onClick={() => add(x, 1)}><span className="row" style={{ gap: '0.5rem' }}><Plus /> {x.n}</span><span className="mute">+{r1(x.p)} g · Na {sodiumOf(x).toLocaleString()}{x.why ? <> · <Heart aria-hidden="true" style={{ width: 12, height: 12, verticalAlign: '-1px' }} /> {x.why}</> : ''}</span></button>)}
             </span>
           </section>
         )}

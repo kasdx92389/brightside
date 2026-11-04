@@ -684,6 +684,13 @@ console.log('ok — mood, memory, review')
   assert.ok(seen.size >= 15, 'หมุนเวียนหลากหลาย ' + seen.size)
   for (let i = 0; i < 30; i++) { const s = suggestFoods(57.9000000006, 1495, { seed: 'z' + i }); assert.ok(s.every((x) => x.p >= 8 && x.k <= 1495 && !/น้ำสลัด|ซอส|น้ำจิ้ม/.test(x.n) && x.cat !== 'drink' && x.cat !== 'snack'), 'suggest filter') }
   assert.deepEqual(suggestFoods(5, 1000), [], 'ขาดน้อยไม่แนะนำ')
+  { // อิงค่าที่เหลือกินได้: โซเดียม/คาร์บ/ไขมันไม่เกินที่เหลือ
+    const { sodiumOf } = await import('../src/data/sodium.js')
+    const rem = { c: 40, f: 15, na: 600 }
+    for (let i = 0; i < 40; i++) for (const x of suggestFoods(60, 1500, { seed: 's' + i, rem })) assert.ok(sodiumOf(x) <= 600 && x.c <= 45 && x.f <= 18, `rem ${x.n} Na${sodiumOf(x)} C${x.c} F${x.f}`)
+    assert.ok(!suggestFoods(60, 1500, { seed: 's', rem: { c: 100, f: 30, na: 1268 } }).some((x) => sodiumOf(x) > 1268), 'ไม่เกินโซเดียมที่เหลือ')
+    assert.deepEqual(suggestFoods(60, 1500, { seed: 's', rem: { c: 100, f: 30, na: 0 } }).filter((x) => sodiumOf(x) > 0), [], 'โซเดียมหมดแล้ว ไม่แนะนำเมนูที่มีโซเดียม')
+  }
   const tuna = FOODS.find((x) => x.n === 'ปลาทูน่ากระป๋อง (ในน้ำ)')
   const hearted = suggestFoods(60, 1500, { seed: 'a', favs: [tuna.id] })
   assert.ok(ids(hearted).includes(tuna.id) && hearted.find((x) => x.id === tuna.id).why, 'เมนูที่กดหัวใจได้รับเลือก')
