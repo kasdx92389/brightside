@@ -223,7 +223,7 @@ select.input {
 /* ───── exercise media (2-frame animation) ───── */
 .media { position: relative; aspect-ratio: 3 / 2; background: #fff; overflow: hidden; border-radius: var(--r-sm); }
 .media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.media img + img { animation: flip 2.4s ease-in-out infinite; }
+.media.anim img + img { animation: flip 2.4s ease-in-out infinite; }
 @keyframes flip { 0%, 35% { opacity: 0; } 50%, 85% { opacity: 1; } 100% { opacity: 0; } }
 .media.ph { background: linear-gradient(135deg, var(--s3), var(--s2)); display: grid; place-items: center; color: var(--pri-fg); }
 .media.ph svg { width: 40%; height: 40%; opacity: 0.9; }
@@ -618,3 +618,6 @@ a.mday:hover { background: var(--s2); }
 .hq:focus-within { outline: 2px solid var(--pri); outline-offset: 2px; }
 .stop { border-color: rgba(255, 107, 122, 0.4); }
 .stop summary { list-style: none; }
+
+/* ปุ่มใต้ท่า (จับเวลา/วิธีเล่น/เปลี่ยนท่า): ขึ้นบรรทัดใหม่ได้ ข้อความตัดบรรทัดได้ ไม่ซ้อนกันบนจอแคบ/ตัวอักษรใหญ่ */
+.acts > .btn { flex: 1 1 auto; min-width: 0; max-width: 100%; height: auto; padding-block: 0.5rem; white-space: normal; text-align: center; line-height: 1.3; }

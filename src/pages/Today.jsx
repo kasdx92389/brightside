@@ -100,7 +100,7 @@ function ExRow({ it, ex, log, date, logs, profile, pf, open, onToggle, onInfo, o
               <button className="tick" aria-pressed={!!s.done} aria-label={`เซ็ต ${i + 1} ${s.done ? 'ทำแล้ว' : 'ยังไม่ทำ'}`} onClick={() => tick(i)}><Check /></button>
             </div>
           ))}
-          <div className="row wrap" style={{ gap: '0.5rem' }}>
+          <div className="row wrap acts" style={{ gap: '0.5rem' }}>
             {secs && <button className="btn sm" onClick={() => startTimer(secs, `จับเวลา ${ex.th}`)}><Timer /> จับเวลา {secs >= 60 ? `${secs / 60} นาที` : `${secs} วิ`}</button>}
             <button className="btn ghost sm grow" onClick={onInfo}><Info /> วิธีเล่นและสิ่งที่ได้</button>
             {done === 0 && <button className="btn ghost sm grow" onClick={onSwap}><ArrowLeftRight /> เครื่องไม่ว่าง? เปลี่ยนท่า</button>}

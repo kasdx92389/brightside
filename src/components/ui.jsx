@@ -12,10 +12,11 @@ export function Media({ ex, eager }) {
       </div>
     )
   const load = eager ? 'eager' : 'lazy'
+  // eager = หน้ารายละเอียดท่า: สลับ 2 เฟรมให้ดูจังหวะ · ในรายการ (แผน/วันนี้/คลัง) แสดงเฟรมแรกนิ่งๆ ไม่โหลดเฟรมที่สอง
   return (
-    <div className="media">
+    <div className={`media${eager ? ' anim' : ''}`}>
       <img src={imgUrl(ex, 0)} alt={`${ex.th} — ท่าเริ่มต้น`} loading={load} decoding="async" />
-      <img src={imgUrl(ex, 1)} alt="" aria-hidden="true" loading={load} decoding="async" />
+      {eager && <img src={imgUrl(ex, 1)} alt="" aria-hidden="true" loading={load} decoding="async" />}
     </div>
   )
 }
