@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Trash2, Heart, BookHeart, ChevronRight } from 'lucide-react'
+import { Trash2, Heart, BookHeart, ChevronRight, Check } from 'lucide-react'
 import { MOODS, MOOD_BY, NOTE_MAX, moodOf, isLow, isHigh, pastEncouragement, kindLine, sustainedLow } from '../lib/mood.js'
 import { setMood, getState } from '../store.js'
 
@@ -91,6 +91,7 @@ export function MoodCard({ date, today, log, logs, title, showKind = true }) {
     t.current = setTimeout(() => { setMood(date, { note: v }); flash() }, 700)
   }
   const commit = () => { clearTimeout(t.current); if (cur && note.trim() !== stored) { setMood(date, { note }); flash() } }
+  const save = () => { clearTimeout(t.current); if (cur && note.trim() !== stored) setMood(date, { note }); flash() } // กดบันทึกเอง: บันทึกทันทีและแสดงผล
   const pick = (id) => { setMood(date, { m: id }); setAsk(false) }
   const enc = isLow(cur) ? pastEncouragement(logs, date, today) : null
   const isToday = date === today
@@ -124,14 +125,19 @@ export function MoodCard({ date, today, log, logs, title, showKind = true }) {
           {isToday && sustainedLow(logs, today) && (
             <p className="hint">หลายวันที่ผ่านมาคุณรู้สึกไม่ค่อยดี ลองพักและคุยกับคนใกล้ชิด ถ้าหนักใจต่อเนื่อง หรือมีความคิดทำร้ายตัวเอง โทรสายด่วนสุขภาพจิต <a href="tel:1323">1323</a> (กรมสุขภาพจิต) ได้ตลอด 24 ชั่วโมง</p>
           )}
-          {ask ? (
-            <div className="row" style={{ gap: '0.5rem' }}>
-              <button type="button" className="btn sm danger" onClick={() => { clearTimeout(t.current); setMood(date, { m: null }); setNote(''); setAsk(false) }}><Trash2 /> ยืนยันลบบันทึกวันนี้</button>
-              <button type="button" className="btn ghost sm" onClick={() => setAsk(false)}>ไม่ลบ</button>
-            </div>
-          ) : (
-            <button type="button" className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAsk(true)}><Trash2 /> ลบบันทึกนี้</button>
-          )}
+          <div className="row between mood-actions">
+            {ask ? (
+              <>
+                <button type="button" className="btn sm danger" onClick={() => { clearTimeout(t.current); setMood(date, { m: null }); setNote(''); setAsk(false) }}><Trash2 /> ยืนยันลบ</button>
+                <button type="button" className="btn ghost sm" onClick={() => setAsk(false)}>ไม่ลบ</button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="btn ghost sm" onClick={() => setAsk(true)}><Trash2 /> ลบบันทึกนี้</button>
+                <button type="button" className="btn pri sm" onClick={save}><Check /> {saved ? 'บันทึกแล้ว' : 'บันทึก'}</button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </section>

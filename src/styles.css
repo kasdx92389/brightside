@@ -641,3 +641,5 @@ a.mday:hover { background: var(--s2); }
 .stats > div { display: flex; flex-direction: column; padding: 0.5rem 0.25rem; border: 1px solid var(--line); border-radius: 12px; }
 .stats b { font-size: 1.125rem; }
 @media (max-width: 420px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.mood-actions { gap: 0.5rem; flex-wrap: nowrap; margin-top: 0.25rem; }
+.mood-actions .btn { white-space: nowrap; }
