@@ -661,3 +661,4 @@ a.mday:hover { background: var(--s2); }
 .wlog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .wlog li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 10px; background: var(--s2); }
 .wlog .icon-btn { width: 36px; height: 36px; }
+.badge .streak-ico { transform: translateY(-9%); } /* เปลวไฟหนักด้านล่าง ตาจึงเห็นต่ำกว่าตัวหนังสือ: ยกขึ้นเล็กน้อยให้กึ่งกลางตรงกับตัวเลข */
