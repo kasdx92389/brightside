@@ -463,11 +463,13 @@ const MORE = [
 const BASE_ALL = [...BASE, ...MORE]
 const byName = new Map(BASE_ALL.map((f) => [f.n, f]))
 const fresh = new Map()
+// เมนูที่เปลี่ยนชื่อแล้ว: คง id เดิมไว้ให้รายการที่เคยบันทึกยังเปิดแก้ได้
+const LEGACY_ID = { 'ข้าวญี่ปุ่น': 'rice-ข้าวญี่ปุ่นสุก' }
 for (const r of RECIPES) {
   const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw, ing: r.ings }
   const ex = byName.get(r.n)
   if (ex) Object.assign(ex, nut)
-  else fresh.set(r.n, { id: `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })
+  else fresh.set(r.n, { id: LEGACY_ID[r.n] || `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })
 }
 // ขนมปังแผ่นแยกยี่ห้อ/ชนิด (ค่าต่อ 1 แผ่นจากฉลาก) — ชื่อใหม่ทั้งหมด ไม่ทับรายการเดิม
 for (const b of BREADS) if (!byName.has(b.n) && !fresh.has(b.n)) fresh.set(b.n, { id: `${b.cat}-${b.n}`, cat: b.cat, n: b.n, u: b.u, k: b.k, p: b.p, c: b.c, f: b.f, na: b.na, gw: b.gw })
