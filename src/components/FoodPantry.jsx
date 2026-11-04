@@ -23,8 +23,8 @@ function Detail({ x, on, onFav, onOpen }) {
   return (
     <div className="col">
       <p className="mute sm">{LABEL[x.kind]} · {x.u}{x.gw && x.u !== '100 g' ? ` (≈ ${x.gw} g)` : ''}</p>
-      <div className="stats" role="group" aria-label="คุณค่าทางโภชนาการ">
-        {[['พลังงาน', x.k, 'kcal'], ['โปรตีน', x.p, 'g'], ['คาร์บ', x.c, 'g'], ['ไขมัน', x.f, 'g'], ['โซเดียม', x.na.toLocaleString(), 'มก.']].map(([l, v, u]) => (
+      <div className="nstats" role="group" aria-label="คุณค่าทางโภชนาการ">
+        {[['พลังงาน', x.k, 'kcal'], ['โซเดียม', x.na.toLocaleString(), 'มก.'], ['โปรตีน', x.p, 'g'], ['คาร์บ', x.c, 'g'], ['ไขมัน', x.f, 'g']].map(([l, v, u]) => (
           <div key={l}><span className="mute xs">{l}</span><b className="num">{v}</b><span className="mute xs">{u}</span></div>
         ))}
       </div>

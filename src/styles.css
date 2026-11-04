@@ -637,9 +637,10 @@ a.mday:hover { background: var(--s2); }
 .pitem .pfav { position: static; flex: none; box-shadow: none; background: transparent; }
 .pitem-b { text-align: left; background: none; border: 0; padding: 0.125rem 0; color: inherit; font: inherit; cursor: pointer; min-height: 44px; display: block; }
 .pitem-b:active { opacity: 0.7; }
-.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; text-align: center; }
-.stats > div { display: flex; flex-direction: column; padding: 0.5rem 0.25rem; border: 1px solid var(--line); border-radius: 12px; }
-.stats b { font-size: 1.125rem; }
-@media (max-width: 420px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.nstats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; text-align: center; } /* แถวบน: พลังงาน + โซเดียม (ครึ่งละ 3) · แถวล่าง: โปรตีน/คาร์บ/ไขมัน (2 ช่องละ) */
+.nstats > div { grid-column: span 2; }
+.nstats > div:nth-child(-n+2) { grid-column: span 3; }
+.nstats > div { display: flex; flex-direction: column; padding: 0.5rem 0.25rem; border: 1px solid var(--line); border-radius: 12px; }
+.nstats b { font-size: 1.125rem; }
 .mood-actions { gap: 0.5rem; flex-wrap: nowrap; margin-top: 0.25rem; }
 .mood-actions .btn { white-space: nowrap; }
