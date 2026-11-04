@@ -7,6 +7,7 @@ import { targets, MEAL_SLOTS } from '../lib/calc.js'
 import { addDays } from '../lib/coach.js'
 import { isLiquid, isGWord, gramsPerUnit, gramInfo, addonGw } from '../data/grams.js'
 import { sodiumOf, addonSodium, itemSodium } from '../data/sodium.js'
+import { INGREDIENT_ADDONS, ingAddonById } from '../data/pantry.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { suggestFoods } from '../lib/suggest.js'
 import { patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
@@ -14,6 +15,7 @@ import { patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, us
 const ML = 250 // 1 แก้ว
 const SLOTS = MEAL_SLOTS.map(([n], i) => [i, n])
 const r1 = (v) => Math.round(v * 10) / 10
+const SEARCH_ADDONS = [...ADDONS, ...INGREDIENT_ADDONS] // ค้นหาได้ทั้งเครื่องปรุงและวัตถุดิบ
 const r2 = (v) => Math.round(v * 100) / 100
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
 const slotNow = () => { const h = new Date().getHours(); return h < 10 ? 0 : h < 15 ? 1 : h < 18 ? 3 : 2 }
@@ -36,11 +38,11 @@ function Bar({ icon: Icon, label, value, goal, unit, over, limit }) {
 
 /** รายการที่บันทึกไว้ → { lookup, ex, gm } สำหรับเปิดแก้ไข (gm = เครื่องปรุงที่บันทึกเป็นกรัม) */
 function fromItem(it) {
-  const lookup = { ...addonById }
+  const lookup = { ...addonById, ...ingAddonById }
   const ex = {}
   const gm = {}
   ;(it?.x || []).forEach((x, i) => {
-    const ad = ADDONS.find((a) => a.n === x.n)
+    const ad = SEARCH_ADDONS.find((a) => a.n === x.n)
     if (ad) {
       if (x.w === 'g' && addonGw(ad)) { ex[ad.id] = x.a / addonGw(ad); gm[ad.id] = true } else ex[ad.id] = x.a
     } else {
@@ -82,7 +84,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
 
   const per = (ad) => addonGw(ad) // กรัมต่อ 1 หน่วยของเครื่องปรุง (ไม่รู้ = null)
   const gOn = (ad) => !!gm[ad.id] && !!per(ad)
-  const stepFor = (ad) => (gOn(ad) ? (per(ad) <= 20 ? 1 : 5) / per(ad) : addonStep(ad))
+  const stepFor = (ad) => (gOn(ad) ? (ad.gStep ?? (per(ad) <= 20 ? 1 : 5)) / per(ad) : addonStep(ad))
   const shown = (ad, n) => (gOn(ad) ? r1(n * per(ad)) : r2(n))
   const picked = Object.entries(ex).map(([id, n]) => [seed.lookup[id], n])
   const sumX = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0)
@@ -91,17 +93,17 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const setX = (id, n) => setEx((cur) => { const o = { ...cur }; if (!(n > 0.0001)) delete o[id]; else o[id] = Math.min(n, 40); return o })
   const toggle = (ad) => {
     if (ex[ad.id]) return setX(ad.id, 0)
-    const g = mode === 'g' && !!per(ad) // ใช้โหมดเดียวกับตัวอาหาร: คนมีเครื่องชั่งจะเริ่มเป็นกรัมเลย
+    const g = !!per(ad) && (!!ad.gOnly || mode === 'g') // ใช้โหมดเดียวกับตัวอาหาร: คนมีเครื่องชั่งจะเริ่มเป็นกรัมเลย (วัตถุดิบเป็นกรัมเสมอ)
     setGm((c) => ({ ...c, [ad.id]: g }))
-    setX(ad.id, g ? 1 : addonStep(ad))
+    setX(ad.id, ad.def ?? (g ? 1 : addonStep(ad)))
   }
   const commit = (ad, e) => { const v = Number(e.currentTarget.value); if (v > 0) setX(ad.id, gOn(ad) ? v / per(ad) : v) }
   const xkey = xq.trim().toLowerCase()
-  const found = xkey ? ADDONS.filter((ad) => matchName(ad.n, xkey)) : null
+  const found = xkey ? SEARCH_ADDONS.filter((ad) => matchName(ad.n, xkey)) : null
   const tips = suggestAddons(food).map((id) => addonById[id]).filter(Boolean)
   const extras = () => picked.map(([ad, n]) => ({ n: ad.n, a: shown(ad, n), w: gOn(ad) ? 'g' : ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n), na: Math.round(addonSodium(ad) * n) }))
   const submit = () => onAdd(q, r2(a), u.word, extras())
-  const chip = (ad) => <button key={ad.id} type="button" className="xchip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}><span className="xn">{ad.n}</span><span className="xk2">{ad.k} kcal{addonSodium(ad) >= 50 ? ` · Na ${addonSodium(ad)}` : ''} / {ad.u}</span></button>
+  const chip = (ad) => <button key={ad.id} type="button" className="xchip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}><span className="xn">{ad.n}</span><span className="xk2">{ad.gOnly ? `${r1(ad.k * 10)} kcal${addonSodium(ad) * 10 >= 50 ? ` · Na ${addonSodium(ad) * 10}` : ''} / 100 g` : `${ad.k} kcal${addonSodium(ad) >= 50 ? ` · Na ${addonSodium(ad)}` : ''} / ${ad.u}`}</span></button>
   return (
     <>
       <p className="mute sm">
@@ -132,7 +134,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
                 <li key={ad.id}>
                   <span className="grow">
                     <b>{ad.n}</b>
-                    <span className="mute xs xk">+{Math.round(ad.k * n)} kcal{per(ad) ? <> · <button type="button" className="xunit" onClick={() => setGm((c) => ({ ...c, [ad.id]: !gOn(ad) }))}>{gOn(ad) ? `เปลี่ยนเป็น${ad.u}` : 'เปลี่ยนเป็น g'}</button></> : null}</span>
+                    <span className="mute xs xk">+{Math.round(ad.k * n)} kcal{per(ad) && !ad.gOnly ? <> · <button type="button" className="xunit" onClick={() => setGm((c) => ({ ...c, [ad.id]: !gOn(ad) }))}>{gOn(ad) ? `เปลี่ยนเป็น${ad.u}` : 'เปลี่ยนเป็น g'}</button></> : null}</span>
                   </span>
                   <span className="xctl">
                     <button type="button" className="icon-btn xbtn" aria-label={`ลด ${ad.n}`} onClick={() => setX(ad.id, n - stepFor(ad))}><Minus /></button>
@@ -148,10 +150,10 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
           )}
           <div className="search">
             <Search aria-hidden="true" />
-            <input className="input" type="search" placeholder="ค้นหาเครื่องปรุง เช่น แม็กกี้ น้ำมันงา" aria-label="ค้นหาเครื่องปรุง" value={xq} onChange={(e) => setXq(e.target.value)} />
+            <input className="input" type="search" placeholder="ค้นหาเครื่องปรุงหรือวัตถุดิบ เช่น แม็กกี้ ข้าวญี่ปุ่น" aria-label="ค้นหาเครื่องปรุงและวัตถุดิบ" value={xq} onChange={(e) => setXq(e.target.value)} />
           </div>
           {found ? (
-            found.length ? <div className="xchips">{found.map(chip)}</div> : <p className="mute sm">ไม่พบเครื่องปรุงนี้ ใช้ "กรอกเอง" ในหน้าหลักเพื่อใส่ค่าจากฉลากได้</p>
+            found.length ? <div className="xchips">{found.map(chip)}</div> : <p className="mute sm">ไม่พบเครื่องปรุง/วัตถุดิบนี้ ใช้ "กรอกเอง" ในหน้าหลักเพื่อใส่ค่าจากฉลากได้</p>
           ) : (
             <>
               {tips.length > 0 && <div className="col" style={{ gap: '0.375rem' }}><span className="xs mute">มักใส่กับเมนูนี้</span><div className="xchips">{tips.map(chip)}</div></div>}

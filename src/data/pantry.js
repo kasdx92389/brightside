@@ -32,3 +32,11 @@ for (const [n, [k, p, c, f, na]] of Object.entries(INGREDIENTS)) {
 }
 export const PANTRY = rows
 export const pantryById = Object.fromEntries(rows.map((r) => [r.id, r]))
+
+/** วัตถุดิบดิบ/สุก (ต่อ 100 g) ในรูปของ "ส่วนเสริม" — ค้นหาใน "เพิ่มรายละเอียด" แล้วใส่เป็นกรัมได้ เช่น กินข้าวญี่ปุ่นกับไข่เจียว
+ *  หน่วยภายใน = 10 g (gw 10) · gOnly = แสดง/บันทึกเป็นกรัมเสมอ · def = ปริมาณตั้งต้น (หน่วย 10 g → 50 g) */
+const r2 = (v) => Math.round(v * 100) / 100
+export const INGREDIENT_ADDONS = Object.entries(INGREDIENTS).filter(([n]) => !addonNames.has(n)).map(([n, [k, p, c, f, na]]) => (
+  { id: `ing-${n}`, cat: 'ing', n, u: '10 g', gw: 10, gOnly: true, gStep: 10, def: 5, k: r2(k / 10), p: r2(p / 10), c: r2(c / 10), f: r2(f / 10), na: Math.round(na / 10) }
+))
+export const ingAddonById = Object.fromEntries(INGREDIENT_ADDONS.map((a) => [a.id, a]))

@@ -703,3 +703,15 @@ console.log('ok — mood, memory, review')
   assert.ok(FOODS.filter((x) => usesIngredient(x, 'น้ำปลา')).length > 20, 'หาเมนูที่ใช้น้ำปลาได้')
   console.log(`ok — pantry ${PANTRY.length} items · suggestions rotate (${seen.size} distinct in 30 shuffles)`)
 }
+{ // วัตถุดิบเป็นส่วนเสริม: ค้นหาใน "เพิ่มรายละเอียด" ได้ ใส่เป็นกรัม
+  const { INGREDIENT_ADDONS } = await import('../src/data/pantry.js')
+  const { addonGw } = await import('../src/data/grams.js')
+  const { addonSodium } = await import('../src/data/sodium.js')
+  const rice = INGREDIENT_ADDONS.find((a) => a.n === 'ข้าวญี่ปุ่น')
+  assert.ok(rice && matchName(rice.n, 'ข้าวญี่ปุ่น') && matchName(rice.n, 'ญี่ปุ่น'), 'ข้าวญี่ปุ่นค้นหาเจอ')
+  assert.equal(addonGw(rice), 10); assert.ok(Math.abs(rice.k * 10 - 155) < 0.5 && Math.abs(rice.p * 10 - 2.5) < 0.1, 'ค่าต่อ 100 g')
+  assert.equal(new Set([...ADDONS, ...INGREDIENT_ADDONS].map((a) => a.id)).size, ADDONS.length + INGREDIENT_ADDONS.length, 'addon id dup')
+  assert.equal(new Set([...ADDONS, ...INGREDIENT_ADDONS].map((a) => a.n)).size, ADDONS.length + INGREDIENT_ADDONS.length, 'addon name dup (fromItem ค้นจากชื่อ)')
+  assert.ok(INGREDIENT_ADDONS.length > 80 && INGREDIENT_ADDONS.every((a) => a.gOnly && addonGw(a) === 10 && Number.isFinite(addonSodium(a))), 'ingredient addons')
+  console.log(`ok — ingredient add-ons: ${INGREDIENT_ADDONS.length}`)
+}
