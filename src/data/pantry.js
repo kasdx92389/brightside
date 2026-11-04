@@ -20,7 +20,7 @@ const kindOfFood = (f) => {
   if (NUT.test(f.n)) return 'ing'
   return 'veg'
 }
-const kindOfIng = (n) => (COND.test(n) ? 'cond' : FRUIT.test(n) ? 'fruit' : VEG.test(n) ? 'veg' : 'ing')
+export const kindOfIng = (n) => (COND.test(n) ? 'cond' : FRUIT.test(n) ? 'fruit' : VEG.test(n) ? 'veg' : 'ing')
 
 const rows = []
 for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f), ...(f.ing && { ing: f.ing }), ...(gramsPerUnit(f) && { gw: gramsPerUnit(f) }) })

@@ -10,6 +10,7 @@ import { sodiumOf, addonSodium, itemSodium } from '../data/sodium.js'
 import { INGREDIENT_ADDONS, ingAddonById } from '../data/pantry.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { suggestFoods } from '../lib/suggest.js'
+import { credits } from '../lib/credit.js'
 import { patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
 
 const ML = 250 // 1 แก้ว
@@ -42,6 +43,7 @@ function fromItem(it) {
   const ex = {}
   const gm = {}
   ;(it?.x || []).forEach((x, i) => {
+    if (x.cr) return // แถวหักค่ามาตรฐาน: คำนวณใหม่เองจากส่วนเสริมที่เลือก
     const ad = SEARCH_ADDONS.find((a) => a.n === x.n)
     if (ad) {
       if (x.w === 'g' && addonGw(ad)) { ex[ad.id] = x.a / addonGw(ad); gm[ad.id] = true } else ex[ad.id] = x.a
@@ -87,8 +89,10 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const stepFor = (ad) => (gOn(ad) ? (ad.gStep ?? (per(ad) <= 20 ? 1 : 5)) / per(ad) : addonStep(ad))
   const shown = (ad, n) => (gOn(ad) ? r1(n * per(ad)) : r2(n))
   const picked = Object.entries(ex).map(([id, n]) => [seed.lookup[id], n])
-  const sumX = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0)
-  const sumNa = picked.reduce((s, [ad, n]) => s + addonSodium(ad) * n, 0)
+  const cr = credits(food, picked.map(([ad]) => ad), q) // เมนูมีน้ำมัน/เครื่องปรุงชนิดนี้อยู่แล้ว → หักค่ามาตรฐานออก ไม่นับซ้ำ
+  const crX = (k) => cr.reduce((s, x) => s + x[k], 0)
+  const sumX = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0) - crX(k)
+  const sumNa = picked.reduce((s, [ad, n]) => s + addonSodium(ad) * n, 0) - crX('na')
   const foodNa = sodiumOf(food)
   const setX = (id, n) => setEx((cur) => { const o = { ...cur }; if (!(n > 0.0001)) delete o[id]; else o[id] = Math.min(n, 40); return o })
   const toggle = (ad) => {
@@ -102,7 +106,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const found = xkey ? SEARCH_ADDONS.filter((ad) => matchName(ad.n, xkey)) : null
   const tips = suggestAddons(food).map((id) => addonById[id]).filter(Boolean)
   const extras = () => picked.map(([ad, n]) => ({ n: ad.n, a: shown(ad, n), w: gOn(ad) ? 'g' : ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n), na: Math.round(addonSodium(ad) * n) }))
-  const submit = () => onAdd(q, r2(a), u.word, extras())
+  const submit = () => onAdd(q, r2(a), u.word, [...extras(), ...cr.map((x) => ({ n: `หัก${x.name}ที่รวมในเมนูแล้ว`, a: x.g, w: 'g', cr: 1, k: -x.k, p: -x.p, c: -x.c, f: -x.f, na: -x.na }))])
   const chip = (ad) => <button key={ad.id} type="button" className="xchip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}><span className="xn">{ad.n}</span><span className="xk2">{ad.gOnly ? `${r1(ad.k * 10)} kcal${addonSodium(ad) * 10 >= 50 ? ` · Na ${addonSodium(ad) * 10}` : ''} / 100 g` : `${ad.k} kcal${addonSodium(ad) >= 50 ? ` · Na ${addonSodium(ad)}` : ''} / ${ad.u}`}</span></button>
   return (
     <>
@@ -127,7 +131,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
       <details className="xbox" open={xOpen} onToggle={(e) => setXOpen(e.currentTarget.open)}>
         <summary className="more">เพิ่มรายละเอียด (น้ำมัน เครื่องปรุง ส่วนเสริม){picked.length > 0 && <b className="xcount">{picked.length}</b>}</summary>
         <div className="col" style={{ gap: '0.75rem', marginTop: '0.625rem' }}>
-          <p className="hint">ค่าของเมนูทอด/ผัดรวมน้ำมันที่ใช้ตามปกติไว้แล้ว เลือกเพิ่มเฉพาะส่วนที่ใส่เกินหรือเครื่องปรุงที่ปรุงเพิ่มเอง ใส่เป็นช้อนหรือชั่งเป็นกรัมก็ได้</p>
+          <p className="hint">ค่าของเมนูทอด/ผัดรวมน้ำมันที่ใช้ตามปกติไว้แล้ว ถ้าไม่เลือกอะไร ระบบคิดตามค่ามาตรฐาน · ถ้าเลือกน้ำมันหรือเครื่องปรุงชนิดเดียวกับที่เมนูมีอยู่ (เช่น น้ำมันที่ใช้เจียวไข่) ระบบจะหักค่ามาตรฐานออกและใช้ปริมาณที่คุณใส่แทน ไม่นับซ้ำ · ใส่เป็นช้อนหรือชั่งเป็นกรัมก็ได้</p>
           {picked.length > 0 && (
             <ul className="xlist" aria-label="เครื่องปรุงที่เลือก">
               {picked.map(([ad, n]) => (
@@ -148,6 +152,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
               ))}
             </ul>
           )}
+          {cr.length > 0 && <p className="hint credit-note">หักค่ามาตรฐานของเมนูออกแล้ว เพราะเมนูนี้รวม{cr.map((x) => `${x.name} ~${x.g} g (−${x.k} kcal)`).join(' · ')} ไว้ในค่าอยู่แล้ว ใช้ปริมาณที่คุณใส่จริงแทน</p>}
           <div className="search">
             <Search aria-hidden="true" />
             <input className="input" type="search" placeholder="ค้นหาเครื่องปรุงหรือวัตถุดิบ เช่น แม็กกี้ ข้าวญี่ปุ่น" aria-label="ค้นหาเครื่องปรุงและวัตถุดิบ" value={xq} onChange={(e) => setXq(e.target.value)} />
@@ -169,7 +174,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
       </details>
 
       <div className="qtot" aria-live="polite">
-        <span><b className="num">{Math.round(food.k * q + sumX('k'))}</b> kcal{picked.length > 0 && <span className="mute xs"> (เครื่องปรุง +{Math.round(sumX('k'))})</span>}</span>
+        <span><b className="num">{Math.round(food.k * q + sumX('k'))}</b> kcal{picked.length > 0 && <span className="mute xs"> (เครื่องปรุง {sumX('k') >= 0 ? '+' : '−'}{Math.abs(Math.round(sumX('k')))})</span>}</span>
         <span className="mute xs">โปรตีน {r1(food.p * q + sumX('p'))} g · คาร์บ {r1(food.c * q + sumX('c'))} g · ไขมัน {r1(food.f * q + sumX('f'))} g · โซเดียม {Math.round(foodNa * q + sumNa).toLocaleString()} มก.</span>
       </div>
       <Seg label="มื้อ" value={slot} onChange={setSlot} options={SLOTS} />
@@ -192,7 +197,7 @@ function EatRow({ it, food, na, onEdit, onDelete }) {
         <div className="grow">
           <div className="eat-n"><span>{it.n}</span>{food && <Pencil className="eat-pen" aria-hidden="true" />}{chip && <span className="qty">{it.w ? `${fmtAmt(it.a)} ${it.w}` : `×${it.q}`}</span>}</div>
           <div className="mute xs">{it.q === 1 && !isGWord(it.w) && food?.u ? food.u + ' · ' : ''}P {it.p} · C {it.c ?? 0} · F {it.f ?? 0} · Na {na.toLocaleString()}</div>
-          {it.x?.length > 0 && <div className="eat-x2 xs">+ {it.x.map((x) => `${x.n} ${fmtAmt(x.a)} ${x.w}`).join(' · ')}</div>}
+          {it.x?.length > 0 && <div className="eat-x2 xs">{it.x.some((x) => !x.cr) ? '+ ' : ''}{it.x.map((x) => (x.cr ? `${x.n} (−${Math.abs(x.k)} kcal)` : `${x.n} ${fmtAmt(x.a)} ${x.w}`)).join(' · ')}</div>}
         </div>
         <span className="num eat-k">{it.k.toLocaleString()}<small> kcal</small></span>
       </Row>
@@ -244,7 +249,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
     const X = (k) => extras.reduce((n, x) => n + x[k], 0)
     return { id: food.id, n: food.n, q: qty, s, k: Math.round(food.k * qty + X('k')), p: r1(food.p * qty + X('p')), c: r1(food.c * qty + X('c')), f: r1(food.f * qty + X('f')), na: Math.round(sodiumOf(food) * qty + X('na')), ...(word && { a: amt, w: word }), ...(extras.length && { x: extras }) }
   }
-  const label = (food, qty, amt, word, extras) => `${food.n}${word ? ` ${fmtAmt(amt)} ${word}` : qty !== 1 ? ` ×${qty}` : ''}${extras?.length ? ` + ${extras.length} เครื่องปรุง` : ''}`
+  const label = (food, qty, amt, word, extras) => `${food.n}${word ? ` ${fmtAmt(amt)} ${word}` : qty !== 1 ? ` ×${qty}` : ''}${extras?.filter((x) => !x.cr).length ? ` + ${extras.filter((x) => !x.cr).length} เครื่องปรุง` : ''}`
   const add = (food, qty = 1, amt, word, extras = []) => {
     addFood(date, mk(food, qty, amt, word, extras))
     toast?.(`เพิ่ม ${label(food, qty, amt, word, extras)} แล้ว`)
