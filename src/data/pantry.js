@@ -23,7 +23,7 @@ const kindOfFood = (f) => {
 export const kindOfIng = (n) => (COND.test(n) ? 'cond' : FRUIT.test(n) ? 'fruit' : VEG.test(n) ? 'veg' : 'ing')
 
 const rows = []
-for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f), ...(f.ing && { ing: f.ing }), ...(gramsPerUnit(f) && { gw: gramsPerUnit(f) }) })
+for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f), ...(f.ing && { ing: f.ing }), ...(f.amt && { amt: f.amt }), ...(f.isan && { isan: 1 }), ...(gramsPerUnit(f) && { gw: gramsPerUnit(f) }) })
 const addonNames = new Set(ADDONS.map((a) => a.n))
 for (const a of ADDONS) rows.push({ id: `ad:${a.id}`, kind: a.cat === 'meat' || a.cat === 'extra' ? 'ing' : 'cond', n: a.n, u: `1 ${a.u}`, k: a.k, p: a.p, c: a.c, f: a.f, na: addonSodium(a), ...(addonGw(a) && { gw: addonGw(a) }) })
 for (const [n, [k, p, c, f, na]] of Object.entries(INGREDIENTS)) {

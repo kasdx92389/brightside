@@ -6,7 +6,7 @@ import { FRUITS } from './fruits.js'
 import { MILKS } from './milks.js'
 
 export const FOOD_CATS = [
-  ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish-stir', 'กับข้าว ผัด'], ['dish-fry', 'ทอด-ย่าง-ไข่'], ['dish-soup', 'แกง-ต้ม'], ['dish-salad', 'ยำ-ตำ-ลาบ'], ['dish-dip', 'น้ำพริก'],
+  ['isan', 'อีสาน'], ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish-stir', 'กับข้าว ผัด'], ['dish-fry', 'ทอด-ย่าง-ไข่'], ['dish-soup', 'แกง-ต้ม'], ['dish-salad', 'ยำ-ตำ-ลาบ'], ['dish-dip', 'น้ำพริก'],
   ['meal', 'จานเดียว'], ['world', 'ต่างชาติ'], ['dairy', 'นม-โปรตีน'], ['plant', 'ผัก-ผลไม้'],
   ['snack', 'ขนม-ของว่าง'], ['drink', 'เครื่องดื่ม'],
 ]
@@ -466,7 +466,7 @@ const fresh = new Map()
 // เมนูที่เปลี่ยนชื่อแล้ว: คง id เดิมไว้ให้รายการที่เคยบันทึกยังเปิดแก้ได้
 const LEGACY_ID = { 'ข้าวญี่ปุ่น': 'rice-ข้าวญี่ปุ่นสุก' }
 for (const r of RECIPES) {
-  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw, ing: r.ings, amt: r.amt }
+  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw, ing: r.ings, amt: r.amt, ...(r.isan && { isan: 1 }) }
   const ex = byName.get(r.n)
   if (ex) Object.assign(ex, nut)
   else fresh.set(r.n, { id: LEGACY_ID[r.n] || `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })
@@ -477,8 +477,11 @@ for (const x of FRUITS) if (!byName.has(x.n) && !fresh.has(x.n)) fresh.set(x.n, 
 for (const m of MILKS) if (!byName.has(m.n) && !fresh.has(m.n)) fresh.set(m.n, { id: `${m.cat}-${m.n}`, cat: m.cat, n: m.n, u: m.u, k: m.k, p: m.p, c: m.c, f: m.f, na: m.na, gw: m.gw })
 export const FOODS = [...BASE_ALL, ...fresh.values()]
 // หมวด "กับข้าว" มีหลายร้อยเมนู → แบ่งกลุ่มย่อยตามวิธีปรุง (ใช้เป็นตัวกรองในหน้าเลือกอาหาร; id/หมวดเดิมไม่เปลี่ยน)
-const dishGroup = (n) => (/น้ำพริก/.test(n) ? 'dish-dip' : /ยำ|ตำ|ลาบ|น้ำตก|พล่า/.test(n) ? 'dish-salad' : /แกง|ต้ม|ซุป/.test(n) ? 'dish-soup' : /ผัด|ฉ่า/.test(n) ? 'dish-stir' : 'dish-fry')
+const dishGroup = (n) => (/น้ำพริก|แจ่วบอง|แจ่วมะขาม|ปลาร้าทรงเครื่อง/.test(n) ? 'dish-dip' : /ยำ|ตำ|ลาบ|น้ำตก|พล่า|ก้อย|ซอยจุ๊/.test(n) ? 'dish-salad' : /แกง|ต้ม|ซุป|อ่อม/.test(n) ? 'dish-soup' : /ผัด|ฉ่า/.test(n) ? 'dish-stir' : 'dish-fry')
 for (const f of FOODS) if (f.cat === 'dish') f.grp = dishGroup(f.n)
+// อาหารอีสาน: เมนูใหม่ติดป้ายจากสูตร · เมนูเดิมจับจากชื่อ (ไม่รวมข้าวผัดแหนม/ก๋วยจั๊บน้ำข้น/ข้าวหน้า)
+const ISAN = /ส้มตำ|^ตำ|ลาบ|น้ำตก|ก้อย|ซอยจุ๊|ต้มแซ่บ|แจ่ว|ลวกจิ้ม|จิ้มจุ่ม|อ่อม|ปลาร้า|อีสาน|ซุปหน่อไม้|ไก่ย่าง|คอหมูย่าง|หมูยอ|แหนม|ข้าวจี่|ก๋วยจั๊บอุบล|ข้าวเหนียว(?!มะม่วง|มูน|ทุเรียน|สังขยา)/
+for (const f of FOODS) if (f.isan || (ISAN.test(f.n) && !/ข้าวผัดแหนม|ก๋วยจั๊บน้ำข้น|ข้าวหน้า/.test(f.n))) f.isan = 1
 export const foodById = Object.fromEntries(FOODS.map((f) => [f.id, f]))
 
 // เครื่องปรุง/ส่วนเสริมที่ผู้ใช้กด "เพิ่มรายละเอียด" เลือกเองต่อรายการ — ค่าต่อ 1 หน่วย (ไม่ซ้ำกับที่รวมอยู่ในเมนูแล้ว)
@@ -590,7 +593,7 @@ export function suggestAddons(f) {
 }
 
 // ค้นหา: ทุกคำที่พิมพ์ต้องอยู่ในชื่อ (ไม่สนช่องว่าง/ตัวพิมพ์) เช่น "ไข่ ต้ม" · มีคำอังกฤษพื้นฐาน เช่น egg, tea, coke
-const EN = [[/ขนมปัง|โทสต์/, 'bread toast slice แผ่น'], [/องุ่น/, 'grape grapes'], [/โปรตีนสูง|โปรตีนเชค|Mulk/i, 'high protein milk protein นมโปรตีน โปรตีนสูง'], [/เมจิ/, 'meiji'], [/ดัชมิลล์|ดัชชี่/, 'dutch mill dutchmill dutchie'], [/โฟร์โมสต์/, 'foremost'], [/โทฟุซัง/, 'tofusan'], [/ไวตามิ้ลค์|วีซอย/, 'vitamilk v-soy'], [/เบทาเก้น/, 'betagen'], [/ไทย-เดนมาร์ค/, 'thai denmark'], [/โอ๊ตลี/, 'oatly'], [/Mulk/i, 'mulk มัก พลัส มัลค์'], [/ไมโล/, 'milo'], [/โอวัลติน/, 'ovaltine'], [/นมถั่วเหลือง|น้ำเต้าหู้/, 'soy milk soymilk'], [/นมโอ๊ต|นมข้าวโอ๊ต/, 'oat milk'], [/นมอัลมอนด์/, 'almond milk'], [/ไร้แลคโตส|ปราศจากแลคโตส/, 'lactose free ไร้แลคโตส ไม่มีแลคโตส แลคโตส แลกโตส'], [/นมเปรี้ยว|โยเกิร์ต/, 'yogurt yoghurt sour milk'], [/ไชน์มัสคัต/, 'shine muscat ไชน์มัสแคท ไซมัสคัส ไชน์มัสแคต ชายน์มัสแคท'], [/ฟาร์มเฮ้าส์/, 'farmhouse farm house ฟาร์มเฮาส์'], [/ตัดขอบ/, 'crustless crust ตัดขอบ'], [/(?<!ไม่)มีขอบ/, 'crust ไม่ตัดขอบ มีขอบ'], [/โฮลวีต/, 'whole wheat wholewheat wholemeal โฮลวีท โฮวสวีท โฮลวีทต'], [/เทสโก้|โลตัส/, 'tesco lotus'], [/เลอแปง/, 'lepain le pain 7-eleven เซเว่น'], [/ท็อปส์/, 'tops'], [/ซันเมอรี่/, 'sunmerry'],
+const EN = [[/ตำ/, 'somtam som tam papaya salad ส้มตำ'], [/ลาบ/, 'larb laab'], [/น้ำตก/, 'nam tok'], [/แจ่วฮ้อน|ลวกจิ้ม/, 'jaew hon hotpot jim jum'], [/ขนมปัง|โทสต์/, 'bread toast slice แผ่น'], [/องุ่น/, 'grape grapes'], [/โปรตีนสูง|โปรตีนเชค|Mulk/i, 'high protein milk protein นมโปรตีน โปรตีนสูง'], [/เมจิ/, 'meiji'], [/ดัชมิลล์|ดัชชี่/, 'dutch mill dutchmill dutchie'], [/โฟร์โมสต์/, 'foremost'], [/โทฟุซัง/, 'tofusan'], [/ไวตามิ้ลค์|วีซอย/, 'vitamilk v-soy'], [/เบทาเก้น/, 'betagen'], [/ไทย-เดนมาร์ค/, 'thai denmark'], [/โอ๊ตลี/, 'oatly'], [/Mulk/i, 'mulk มัก พลัส มัลค์'], [/ไมโล/, 'milo'], [/โอวัลติน/, 'ovaltine'], [/นมถั่วเหลือง|น้ำเต้าหู้/, 'soy milk soymilk'], [/นมโอ๊ต|นมข้าวโอ๊ต/, 'oat milk'], [/นมอัลมอนด์/, 'almond milk'], [/ไร้แลคโตส|ปราศจากแลคโตส/, 'lactose free ไร้แลคโตส ไม่มีแลคโตส แลคโตส แลกโตส'], [/นมเปรี้ยว|โยเกิร์ต/, 'yogurt yoghurt sour milk'], [/ไชน์มัสคัต/, 'shine muscat ไชน์มัสแคท ไซมัสคัส ไชน์มัสแคต ชายน์มัสแคท'], [/ฟาร์มเฮ้าส์/, 'farmhouse farm house ฟาร์มเฮาส์'], [/ตัดขอบ/, 'crustless crust ตัดขอบ'], [/(?<!ไม่)มีขอบ/, 'crust ไม่ตัดขอบ มีขอบ'], [/โฮลวีต/, 'whole wheat wholewheat wholemeal โฮลวีท โฮวสวีท โฮลวีทต'], [/เทสโก้|โลตัส/, 'tesco lotus'], [/เลอแปง/, 'lepain le pain 7-eleven เซเว่น'], [/ท็อปส์/, 'tops'], [/ซันเมอรี่/, 'sunmerry'],
   [/ญี่ปุ่น|ซูชิ|ซาชิมิ|โอนิกิริ|ด้ง|ราเมง|อุด้ง|มิโสะ|เทมปุระ|คาราอะเงะ|ทงคัตสึ|เทอริยากิ|ทามาโกะ|คัตสึ|โอมูไรซ์|ยากิเมชิ|โอฉะซึเกะ|แคลิฟอร์เนียโรล/, 'ญี่ปุ่น japanese japan'],
   [/ซูชิ|โอนิกิริ|ข้าว.*ญี่ปุ่น|กิวด้ง|ด้ง[)]|เทอริยากิ|ทงคัตสึ|คัตสึแกง|โอมูไรซ์|ยากิเมชิ|โอฉะซึเกะ|แคลิฟอร์เนียโรล/, 'ข้าวญี่ปุ่น'],
   [/ไข่/, 'egg'], [/ไก่/, 'chicken'], [/หมู/, 'pork'], [/เนื้อ/, 'beef'], [/ปลา/, 'fish'], [/กุ้ง/, 'shrimp'], [/ข้าว/, 'rice'], [/ต้ม|โจ๊ก/, 'congee soup'],

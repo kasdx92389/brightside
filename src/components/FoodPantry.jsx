@@ -36,7 +36,7 @@ function Detail({ x, on, onFav, onOpen }) {
       {ings.length > 0 && (
         <div className="col" style={{ gap: '0.375rem' }}>
           <b>วัตถุดิบในเมนูนี้</b>
-          <div className="xchips">{ings.map(([n, r]) => (r ? <button key={n} type="button" className="xchip" onClick={() => onOpen(r)}><span className="xn">{n}</span><span className="xk2">{r.k} kcal / {r.u}</span></button> : <span key={n} className="xchip" aria-disabled="true"><span className="xn">{n}</span></span>))}</div>
+          <div className="xchips">{ings.map(([n, r]) => (r ? <button key={n} type="button" className="xchip" onClick={() => onOpen(r)}><span className="xn">{n}{x.amt?.[n] ? ` ${x.amt[n]} g` : ''}</span><span className="xk2">{r.k} kcal / {r.u}</span></button> : <span key={n} className="xchip" aria-disabled="true"><span className="xn">{n}{x.amt?.[n] ? ` ${x.amt[n]} g` : ''}</span></span>))}</div>
         </div>
       )}
       {used.length > 0 && (
