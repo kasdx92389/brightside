@@ -102,9 +102,28 @@ export const toggleWarm = (date) => patchLog(date, (log) => ({ ...log, warm: !lo
 export const patchFood = (date, patch) =>
   patchLog(date, (log) => {
     const f = { ...log.food, ...patch }
-    for (const k in f) if (k !== 'items') f[k] = Math.max(0, Number(f[k]) || 0)
+    for (const k in f) if (k !== 'items' && k !== 'waterLog') f[k] = Math.max(0, Number(f[k]) || 0)
     return { ...log, food: f }
   })
+
+// น้ำดื่ม: food.water = จำนวนแก้ว (250 มล.) ปัดทศนิยม 2 ตำแหน่ง · food.waterLog = [{ ml, t, adj? }] ทุกครั้งที่ดื่ม/ปรับยอด (ย้อนทีละรายการได้ · adj = ปรับยอดรวม)
+const WML = 250
+const waterMl = (f) => Math.round((Number(f?.water) || 0) * WML)
+const setWater = (f, ml) => ({ ...f, water: Math.round((Math.max(0, ml) / WML) * 100) / 100 })
+export const addWater = (date, ml, adj = false) =>
+  patchLog(date, (log) => {
+    const f = log.food || {}
+    const eff = Math.max(Math.round(ml), -waterMl(f)) // ลบแล้วต่ำกว่า 0 ไม่ได้
+    if (!eff) return log
+    return { ...log, food: { ...setWater(f, waterMl(f) + eff), waterLog: [...(f.waterLog || []), { ml: eff, t: Date.now(), ...(adj && { adj: 1 }) }].slice(-60) } }
+  })
+export const removeWaterEntry = (date, i) =>
+  patchLog(date, (log) => {
+    const f = log.food || {}, e = (f.waterLog || [])[i]
+    return e ? { ...log, food: { ...setWater(f, waterMl(f) - e.ml), waterLog: f.waterLog.filter((_, n) => n !== i) } } : log
+  })
+/** ตั้งยอดรวมของวันเป็นค่านี้ (บันทึกเป็นรายการ "ปรับยอด" ย้อนได้) */
+export const setWaterTotal = (date, ml) => addWater(date, Math.round(ml) - waterMl(getState().logs[date]?.food), true)
 
 // บันทึกอาหารทีละรายการ: item = { id, n ชื่อ, q ปริมาณ, s มื้อ(0-3), k kcal, p โปรตีน, c คาร์บ, f ไขมัน } · ยอดรวมของวันอัปเดตตาม
 const FOOD_KEYS = { k: 'kcal', p: 'protein', c: 'carb', f: 'fat' }

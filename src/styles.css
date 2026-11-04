@@ -651,3 +651,13 @@ a.mday:hover { background: var(--s2); }
 .nstats b { font-size: 1.125rem; }
 .mood-actions { gap: 0.5rem; flex-wrap: nowrap; margin-top: 0.25rem; }
 .mood-actions .btn { white-space: nowrap; }
+
+/* น้ำดื่ม: ปริมาณอื่น/แก้ยอด/ประวัติ */
+.wmore > summary { min-height: 44px; display: flex; align-items: center; gap: 0.5rem; }
+.wpre { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.wpre .btn { padding: 0 0.25rem; gap: 2px; min-width: 0; }
+.wrow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+.winput { min-width: 0; width: 100%; height: 44px; font-size: 1rem; }
+.wlog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wlog li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 10px; background: var(--s2); }
+.wlog .icon-btn { width: 36px; height: 36px; }

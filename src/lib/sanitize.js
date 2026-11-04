@@ -53,6 +53,8 @@ function sanitizeLog(l) {
   if (l.food !== undefined) {
     const f = isObj(l.food) ? { ...l.food } : {}
     for (const k of ['kcal', 'protein', 'carb', 'fat', 'water']) if (k in f) f[k] = Math.max(0, Number(f[k]) || 0)
+    f.waterLog = (Array.isArray(f.waterLog) ? f.waterLog : []).filter((e) => isObj(e) && Number.isFinite(Number(e.ml)) && Math.abs(Number(e.ml)) <= 20000).slice(-60).map((e) => ({ ml: Math.round(Number(e.ml)), t: Number(e.t) || 0, ...(e.adj && { adj: 1 }) }))
+    if (!f.waterLog.length) delete f.waterLog
     f.items = (Array.isArray(f.items) ? f.items : []).filter((it) => isObj(it) && typeof it.n === 'string' && Number.isFinite(Number(it.k))).slice(0, 80)
     out.food = f
   }

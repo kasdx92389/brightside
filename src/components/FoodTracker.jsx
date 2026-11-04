@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb, Pencil, Soup, Shuffle, Heart } from 'lucide-react'
+import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb, Pencil, Soup, Shuffle, Heart, Undo2 } from 'lucide-react'
 import { Seg, Sheet } from './ui.jsx'
 import { unitInfo, fmtAmt } from '../lib/units.js'
 import { FOODS, FOOD_CATS, foodById, ADDON_GROUPS, ADDONS, addonById, addonStep, suggestAddons, matchName } from '../data/foods.js'
@@ -11,7 +11,7 @@ import { INGREDIENT_ADDONS, ingAddonById } from '../data/pantry.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { suggestFoods } from '../lib/suggest.js'
 import { credits } from '../lib/credit.js'
-import { patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
+import { addWater, removeWaterEntry, setWaterTotal, patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
 
 const ML = 250 // 1 แก้ว
 const SLOTS = MEAL_SLOTS.map(([n], i) => [i, n])
@@ -293,7 +293,13 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
     }
     setCustom({ ...blankCustom, mode: custom.mode })
   }
-  const drink = (ml) => patchFood(date, { water: Math.round(Math.max(0, water + ml / ML) * 100) / 100 })
+  const drink = (ml) => addWater(date, ml)
+  const wlog = f.waterLog || []
+  const lastW = wlog[wlog.length - 1]
+  const waterNow = Math.round(water * ML), waterGoalMl = wg * ML
+  const [wOther, setWOther] = useState('') // ปริมาณอื่น (มล.) · เพิ่ม/ลดได้
+  const [wTotal, setWTotal] = useState('') // แก้ยอดรวมของวันเป็นค่านี้
+  const timeOf = (t) => (t > 0 ? new Date(t).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '')
 
   // ยอดที่บันทึกไว้จากแอปเวอร์ชันเก่า (กรอกยอดรวม ไม่มีรายการ) หรือเหลือจากการแก้ข้อมูล: แสดงให้เห็นและให้ล้างได้
   const sumI = (k) => items.reduce((n, it) => n + (Number(it[k]) || 0), 0)
@@ -311,7 +317,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const h = new Date().getHours() + new Date().getMinutes() / 60
   const expected = wg * clamp((h - 7) / 14, 0, 1) // ควรดื่มทยอยตลอดวัน 07:00–21:00
   const pace = !isToday ? '' : water >= wg ? 'ดื่มครบเป้าแล้ว เก่งมาก' : expected - water >= 1
-    ? `ตอนนี้ควรดื่มแล้วราว ${Math.round(expected * ML).toLocaleString()} มล. ตามอยู่ ${Math.round((expected - water) * ML)} มล. ดื่มสักแก้วเลย`
+    ? `ตอนนี้ควรดื่มแล้วราว ${Math.round(expected * ML).toLocaleString()} มล. ตามอยู่ ${Math.round((expected - water) * ML).toLocaleString()} มล. ดื่มสักแก้วเลย`
     : 'จังหวะดี ดื่มต่อเนื่องตลอดวัน อย่ารอจนกระหาย'
 
   return (
@@ -324,10 +330,37 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
         <section className="col" style={{ gap: '0.5rem' }}>
           <Bar icon={Droplets} label="น้ำดื่ม" value={water * ML} goal={wg * ML} unit="มล." />
           <div className="drinks">
-            <button className="btn sm" aria-label="ลดน้ำ 250 มล." onClick={() => drink(-ML)}><Minus /></button>
+            {lastW
+              ? <button className="btn sm" aria-label={`ย้อนรายการล่าสุด ${lastW.ml > 0 ? '+' : ''}${lastW.ml} มล.`} title={`ย้อนรายการล่าสุด ${lastW.ml > 0 ? '+' : ''}${lastW.ml} มล.`} onClick={() => removeWaterEntry(date, wlog.length - 1)}><Undo2 /></button>
+              : <button className="btn sm" aria-label="ลดน้ำ 250 มล." onClick={() => drink(-ML)}><Minus /></button>}
             {[250, 500, 600].map((ml) => <button key={ml} className="btn sm" onClick={() => drink(ml)}><Plus /> {ml}</button>)}
           </div>
-          <p className="hint">{train ? (isToday ? `วันนี้วันฝึก เป้าน้ำ +500 มล. ดื่ม 400–600 มล. ก่อนฝึก 2 ชม. และจิบระหว่างฝึก · ` : 'วันฝึก เป้าน้ำ +500 มล.') : ''}{pace}</p>
+          <details className="wmore">
+            <summary className="more">ปริมาณอื่น · แก้ยอด · ประวัติวันนี้{wlog.length > 0 && <b className="xcount">{wlog.length}</b>}</summary>
+            <div className="col" style={{ gap: '0.625rem', marginTop: '0.5rem' }}>
+              <div className="wpre" role="group" aria-label="ปริมาณที่เจอบ่อย">
+                {[100, 150, 330, 750, 1000, 1500].map((ml) => <button key={ml} type="button" className="btn sm" onClick={() => drink(ml)}><Plus /> {ml.toLocaleString()}</button>)}
+              </div>
+              <div className="wrow">
+                <input className="input winput" type="number" inputMode="numeric" min="1" max="5000" placeholder="กรอกเอง (มล.)" aria-label="ปริมาณน้ำที่กรอกเอง (มล.)" value={wOther} onChange={(e) => setWOther(e.target.value)} />
+                <button type="button" className="btn sm" disabled={!(Number(wOther) > 0)} onClick={() => { drink(Number(wOther)); setWOther('') }}><Plus /> เพิ่ม</button>
+                <button type="button" className="btn sm" disabled={!(Number(wOther) > 0)} onClick={() => { drink(-Number(wOther)); setWOther('') }}><Minus /> ลด</button>
+              </div>
+              <div className="wrow">
+                <input className="input winput" type="number" inputMode="numeric" min="0" max="10000" placeholder={`ยอดรวมจริง (มล.)`} aria-label="ตั้งยอดรวมน้ำของวัน (มล.)" value={wTotal} onChange={(e) => setWTotal(e.target.value)} />
+                <button type="button" className="btn sm" disabled={wTotal === '' || !(Number(wTotal) >= 0)} onClick={() => { setWaterTotal(date, Number(wTotal)); setWTotal(''); toast?.('ปรับยอดน้ำรวมแล้ว') }}>ตั้งยอดรวม</button>
+              </div>
+              {wlog.length > 0 ? (
+                <ul className="wlog" aria-label="ประวัติน้ำวันนี้">
+                  {[...wlog].map((e, i) => [e, i]).reverse().map(([e, i]) => (
+                    <li key={i}><span className="mute xs">{timeOf(e.t)}</span><span className="grow">{e.adj ? 'ปรับยอด ' : ''}<b className="num">{e.ml > 0 ? '+' : ''}{e.ml.toLocaleString()}</b> มล.</span><button type="button" className="icon-btn" aria-label={`ลบรายการ ${e.ml} มล.`} onClick={() => removeWaterEntry(date, i)}><X /></button></li>
+                  ))}
+                </ul>
+              ) : <p className="hint">ยังไม่มีประวัติ กดปุ่มน้ำด้านบนหรือกรอกเอง ลบทีละรายการได้</p>}
+              <p className="hint">ยอดตอนนี้ {waterNow.toLocaleString()} มล. · ถ้าลืมบันทึกหรือบันทึกผิด ใส่ “ยอดรวมจริง” แล้วกด “ตั้งยอดรวม” ได้เลย</p>
+            </div>
+          </details>
+          <p className="hint">{train ? (isToday ? `วันนี้วันฝึก เป้าน้ำ +500 มล. ดื่ม 400–600 มล. ก่อนฝึก 2 ชม. และจิบระหว่างฝึก · ` : 'วันฝึก เป้าน้ำ +500 มล.') : ''}{water < wg ? `เหลืออีก ${(waterGoalMl - waterNow).toLocaleString()} มล. · ` : ''}{pace}</p>
         </section>
 
         <section className="col" style={{ gap: '0.75rem' }}>

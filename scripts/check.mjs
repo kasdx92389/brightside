@@ -732,3 +732,18 @@ console.log('ok — mood, memory, review')
   assert.deepEqual(replaces(egg, A('กะทิ')), [], 'กะทิไม่ใช่น้ำมันปรุงอาหาร')
   console.log('ok — add-on credit (no double counting)')
 }
+{ // น้ำดื่ม: บันทึกทีละรายการ ย้อน/ลบ/ปรับยอด ได้ ยอดไม่ติดลบ ไม่หายตอน patchFood/sanitize
+  const { addWater, removeWaterEntry, setWaterTotal, patchFood } = await import('../src/store.js')
+  const d = '2026-10-01', W = () => getState().logs[d]?.food
+  addWater(d, 250); addWater(d, 600); addWater(d, 330)
+  assert.equal(W().water, 4.72, '250+600+330 = 1180 มล. = 4.72 แก้ว'); assert.equal(W().waterLog.length, 3)
+  patchFood(d, { kcal: 100 }); assert.equal(W().waterLog.length, 3, 'patchFood ไม่ทำลายประวัติน้ำ'); assert.ok(Array.isArray(W().waterLog))
+  removeWaterEntry(d, 1); assert.equal(Math.round(W().water * 250), 580, 'ลบ +600 แล้วเหลือ 580'); assert.deepEqual(W().waterLog.map((e) => e.ml), [250, 330])
+  addWater(d, -9999); assert.equal(W().water, 0, 'ลบเกินไม่ติดลบ'); assert.ok(W().waterLog.at(-1).ml === -580)
+  setWaterTotal(d, 1500); assert.equal(Math.round(W().water * 250), 1500); assert.equal(W().waterLog.at(-1).adj, 1)
+  setWaterTotal(d, 1500); assert.equal(W().waterLog.length, 4, 'ยอดเท่าเดิมไม่เพิ่มรายการ')
+  const clean = sanitizeState({ ...getState(), logs: { [d]: { sets: {}, food: { water: 1, waterLog: [{ ml: 250, t: 1 }, { ml: 'x' }, null, { ml: 999999 }] } } } }, '2026-10-02')
+  assert.deepEqual(clean.logs[d].food.waterLog, [{ ml: 250, t: 1 }], 'sanitize เก็บเฉพาะรายการที่ถูกต้อง')
+  for (let i = 0; i < 70; i++) addWater(d, 100); assert.ok(W().waterLog.length <= 60, 'ประวัติจำกัด 60 รายการ')
+  console.log('ok — water log (add/undo/remove/set total)')
+}
