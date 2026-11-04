@@ -25,13 +25,11 @@ export default function ReviewCard({ s, today, toast }) {
         {cal === null && <p className="mute sm">อายุต่ำกว่า 18 ปี หรือตั้งครรภ์/ให้นมบุตร แอพไม่ปรับเป้าแคลอรี่อัตโนมัติ ควรปรึกษาแพทย์หรือนักกำหนดอาหาร</p>}
         {cal && <p className="sm">{cal.msg}</p>}
         {cal?.kind === 'adjust' && (
-          <div className="row wrap" style={{ gap: '0.5rem' }}>
-            <button type="button" className="btn pri sm" onClick={() => { setKcalAdj(cal.next); toast(`ปรับเป้าเป็น ${cal.kcal.toLocaleString()} kcal แล้ว`) }}>
-              ปรับเป็น {cal.kcal.toLocaleString()} kcal ({cal.delta > 0 ? '+' : ''}{cal.delta})
-            </button>
-          </div>
+          <button type="button" className="btn pri sm" onClick={() => { setKcalAdj(cal.next); toast(`ปรับเป้าเป็น ${cal.kcal.toLocaleString()} kcal แล้ว`) }}>
+            ปรับเป็น {cal.kcal.toLocaleString()} kcal ({cal.delta > 0 ? '+' : ''}{cal.delta})
+          </button>
         )}
-        {cur !== 0 && <button type="button" className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => { setKcalAdj(0); toast('กลับไปใช้เป้าตามสูตรมาตรฐาน') }}>ใช้ค่าตามสูตรมาตรฐาน</button>}
+        {cur !== 0 && <button type="button" className="btn ghost sm" onClick={() => { setKcalAdj(0); toast('กลับไปใช้เป้าตามสูตรมาตรฐาน') }}>ใช้ค่าตามสูตรมาตรฐาน</button>}
         <p className="hint">น้ำหนักแกว่งได้จากน้ำ/โซเดียม/ประจำเดือน จึงดูแนวโน้ม ≥2 สัปดาห์ ลด 0.5–1%/สัปดาห์ (Helms 2014) · เพิ่ม 0.25–0.5%/สัปดาห์ (Iraki 2019) ศึกษาในนักเพาะกายธรรมชาติ ใช้เป็นแนวทางทั่วไป</p>
       </div>
 

@@ -621,3 +621,8 @@ a.mday:hover { background: var(--s2); }
 
 /* ปุ่มใต้ท่า (จับเวลา/วิธีเล่น/เปลี่ยนท่า): ขึ้นบรรทัดใหม่ได้ ข้อความตัดบรรทัดได้ ไม่ซ้อนกันบนจอแคบ/ตัวอักษรใหญ่ */
 .acts > .btn { flex: 1 1 auto; min-width: 0; max-width: 100%; height: auto; padding-block: 0.5rem; white-space: normal; text-align: center; line-height: 1.3; }
+
+/* มือถือ: ปุ่มที่อยู่เดี่ยวๆ ในการ์ด/คอลัมน์ ขยายเต็มแถวและอยู่กลาง (ปุ่มในแถว/กริดเดียวกับปุ่มอื่นคงเดิม) */
+@media (max-width: 639px) {
+  .col > .btn, .card > .btn, form.col > .btn { align-self: stretch !important; width: 100%; justify-content: center; text-align: center; white-space: normal; }
+}
