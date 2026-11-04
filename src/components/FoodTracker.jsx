@@ -236,7 +236,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   }, [logs, date, byId])
   const tab = (cat === 'recent' && !recents.length) || (cat === 'mine' && !mine.length) ? 'rice' : cat
   const key = q.trim().toLowerCase()
-  const shown = key ? allFoods.filter((x) => matchName(x.n, key) || (x.isan && /^(อีสาน|isan)$/i.test(key))) : tab === 'recent' ? recents : allFoods.filter((x) => (tab === 'isan' ? x.isan : (x.grp ?? x.cat) === tab))
+  const shown = key ? allFoods.filter((x) => matchName(x.n, key)) : tab === 'recent' ? recents : allFoods.filter((x) => (x.grp ?? x.cat) === tab)
 
   const lastAmt = (id) => {
     for (let i = 0; i < 30; i++) {

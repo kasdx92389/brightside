@@ -6,7 +6,7 @@ import { FRUITS } from './fruits.js'
 import { MILKS } from './milks.js'
 
 export const FOOD_CATS = [
-  ['isan', 'อีสาน'], ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish-stir', 'กับข้าว ผัด'], ['dish-fry', 'ทอด-ย่าง-ไข่'], ['dish-soup', 'แกง-ต้ม'], ['dish-salad', 'ยำ-ตำ-ลาบ'], ['dish-dip', 'น้ำพริก'],
+  ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish-stir', 'กับข้าว ผัด'], ['dish-fry', 'ทอด-ย่าง-ไข่'], ['dish-soup', 'แกง-ต้ม'], ['dish-salad', 'ยำ-ตำ-ลาบ'], ['dish-dip', 'น้ำพริก'],
   ['meal', 'จานเดียว'], ['world', 'ต่างชาติ'], ['dairy', 'นม-โปรตีน'], ['plant', 'ผัก-ผลไม้'],
   ['snack', 'ขนม-ของว่าง'], ['drink', 'เครื่องดื่ม'],
 ]

@@ -748,9 +748,8 @@ console.log('ok — mood, memory, review')
   console.log('ok — water log (add/undo/remove/set total)')
 }
 { // อาหารอีสาน: ครบหมวดที่ขอ · ค่าสมเหตุสมผล · ค้นหาเจอ · เมนูเดิมไม่เปลี่ยน id/หน่วย
-  const { FOOD_CATS } = await import('../src/data/foods.js')
   const isan = FOODS.filter((f) => f.isan)
-  assert.equal(FOOD_CATS[0][0], 'isan'); assert.ok(isan.length >= 90, 'isan count ' + isan.length)
+  assert.ok(isan.length >= 90, 'isan count ' + isan.length)
   const has = (re, n) => assert.ok(isan.filter((f) => re.test(f.n)).length >= n, `isan ${re} ≥ ${n}`)
   has(/ตำ/, 12); has(/ลาบ/, 8); has(/น้ำตก/, 4); has(/ต้มแซ่บ/, 6); has(/แจ่วฮ้อน/, 5); has(/ลวกจิ้ม/, 5); has(/อ่อม/, 4); has(/ก้อย|ซอยจุ๊/, 3); has(/หมก/, 3)
   for (const f of isan) assert.ok(f.k > 0 && f.p >= 0 && f.c >= 0 && f.f >= 0 && Number.isFinite(f.na ?? 0) && f.gw > 0 || !f.gw, 'isan nutrition ' + f.n)
