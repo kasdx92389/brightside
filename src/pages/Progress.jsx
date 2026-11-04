@@ -1,6 +1,5 @@
-import StreakIcon from '../components/StreakIcon.jsx'
 import { useState } from 'react'
-import { BookHeart, CalendarCheck, Scale, Trophy, Plus, Activity, Ruler, Medal, Lock, Target } from 'lucide-react'
+import { BookHeart, Flame, CalendarCheck, Scale, Trophy, Plus, Activity, Ruler, Medal, Lock, Target } from 'lucide-react'
 import { byId } from '../data/exercises.js'
 import { foodById } from '../data/foods.js'
 import { itemSodium } from '../data/sodium.js'
@@ -102,7 +101,7 @@ export default function Progress({ toast }) {
 
       <div className="stats">
         <div className="stat"><CalendarCheck aria-hidden="true" /><span className="num">{doneWeek}<small>/{planned} วัน</small></span><small>สัปดาห์นี้</small></div>
-        <div className="stat"><StreakIcon /><span className="num">{streak(s)}</span><small>วันต่อเนื่อง</small></div>
+        <div className="stat"><Flame aria-hidden="true" /><span className="num">{streak(s)}</span><small>วันต่อเนื่อง</small></div>
         <div className="stat"><Activity aria-hidden="true" /><span className="num">{finished.length}</span><small>ครั้งที่ฝึกทั้งหมด</small></div>
         <div className="stat"><Scale aria-hidden="true" /><span className="num">{b.toFixed(1)}</span><small>BMI · {bmiBand(b).label}</small></div>
       </div>
