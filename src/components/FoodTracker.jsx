@@ -5,7 +5,7 @@ import { unitInfo, fmtAmt } from '../lib/units.js'
 import { FOODS, FOOD_CATS, foodById, ADDON_GROUPS, ADDONS, addonById, addonStep, suggestAddons, matchName } from '../data/foods.js'
 import { targets, MEAL_SLOTS } from '../lib/calc.js'
 import { addDays } from '../lib/coach.js'
-import { gramsPerUnit, gramInfo, addonGw } from '../data/grams.js'
+import { isLiquid, isGWord, gramsPerUnit, gramInfo, addonGw } from '../data/grams.js'
 import { sodiumOf, addonSodium, itemSodium } from '../data/sodium.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
@@ -53,9 +53,9 @@ function fromItem(it) {
     } else {
       // ชื่อที่ถูกเปลี่ยน/ลบไปแล้ว: ใช้ค่าต่อหน่วยจากที่บันทึกไว้
       const id = `old-${i}`
-      lookup[id] = { id, cat: 'old', n: x.n, u: x.w, na: (x.na || 0) / x.a, k: x.k / x.a, p: x.p / x.a, c: x.c / x.a, f: x.f / x.a, ...(x.w === 'g' && { gw: 1 }) }
+      lookup[id] = { id, cat: 'old', n: x.n, u: x.w, na: (x.na || 0) / x.a, k: x.k / x.a, p: x.p / x.a, c: x.c / x.a, f: x.f / x.a, ...(isGWord(x.w) && { gw: 1 }) }
       ex[id] = x.a
-      if (x.w === 'g') gm[id] = true
+      if (isGWord(x.w)) gm[id] = true
     }
   })
   return { lookup, ex, gm }
@@ -67,8 +67,9 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const base = unitInfo(food)
   const gw = gramsPerUnit(food)
   const canG = base.kind !== 'g' && gw > 0
-  const [mode, setMode] = useState(() => (canG && (init ? init.w === 'g' : getWeighMode() === 'g') ? 'g' : 'u'))
-  const u = mode === 'g' ? gramInfo(gw) : base
+  const gword = isLiquid(food) ? 'มล.' : 'g' // ของเหลวตวงเป็น มล. อย่างอื่นชั่งเป็นกรัม
+  const [mode, setMode] = useState(() => (canG && (init ? isGWord(init.w) : getWeighMode() === 'g') ? 'g' : 'u'))
+  const u = mode === 'g' ? gramInfo(gw, gword) : base
   const [seed] = useState(() => fromItem(init))
   const [val, setVal] = useState(() => String(r2(clamp(init?.a ?? u.base, u.min, u.max))))
   const [xOpen, setXOpen] = useState(() => Object.keys(seed.ex).length > 0)
@@ -80,7 +81,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const move = (d) => setVal(String(r2(clamp(a + d * u.step, u.min, u.max))))
   const switchMode = (m) => {
     if (m === mode) return
-    const nu = m === 'g' ? gramInfo(gw) : base
+    const nu = m === 'g' ? gramInfo(gw, gword) : base
     setMode(m)
     setWeighMode(m)
     setVal(String(r2(clamp(Math.round((q * nu.base) / nu.step) * nu.step, nu.min, nu.max))))
@@ -112,9 +113,9 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
     <>
       <p className="mute sm">
         {food.u} = <b className="num">{food.k}</b> kcal · P {food.p} · C {food.c} · F {food.f} · Na {foodNa} มก.
-        {mode === 'g' && <span> · ≈ {gw} g ต่อหน่วยนี้ ({Math.round((food.k / gw) * 100)} kcal/100 g) เป็นค่าประมาณ</span>}
+        {mode === 'g' && <span> · ≈ {gw} {gword} ต่อหน่วยนี้ ({Math.round((food.k / gw) * 100)} kcal/100 {gword}) เป็นค่าประมาณ</span>}
       </p>
-      {canG && <Seg label="วิธีใส่ปริมาณ" value={mode} onChange={switchMode} options={[['u', `ตามหน่วย (${base.word})`], ['g', 'ชั่งเป็นกรัม (g)']]} />}
+      {canG && <Seg label="วิธีใส่ปริมาณ" value={mode} onChange={switchMode} options={[['u', `ตามหน่วย (${base.word})`], ['g', gword === 'มล.' ? 'ตวงเป็น มล.' : 'ชั่งเป็นกรัม (g)']]} />}
       <div className="qty-row">
         <button className="icon-btn qbtn" aria-label="ลดจำนวน" disabled={a <= u.min} onClick={() => move(-1)}><Minus /></button>
         <label className="qty-in">
@@ -189,13 +190,13 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
 /** แถวอาหารที่บันทึกแล้ว: แตะเพื่อแก้ไข (เฉพาะเมนูที่มีในฐานข้อมูล/เมนูของฉัน — "กรอกเอง" แบบไม่บันทึกแก้ไม่ได้ ลบแล้วเพิ่มใหม่) */
 function EatRow({ it, food, na, onEdit, onDelete }) {
   const Row = food ? 'button' : 'div'
-  const chip = it.w === 'g' || it.q !== 1
+  const chip = isGWord(it.w) || it.q !== 1
   return (
     <li className="eat">
       <Row className="eat-b" {...(food && { type: 'button', 'aria-label': `แก้ไข ${it.n}`, onClick: onEdit })}>
         <div className="grow">
           <div className="eat-n"><span>{it.n}</span>{food && <Pencil className="eat-pen" aria-hidden="true" />}{chip && <span className="qty">{it.w ? `${fmtAmt(it.a)} ${it.w}` : `×${it.q}`}</span>}</div>
-          <div className="mute xs">{it.q === 1 && it.w !== 'g' && food?.u ? food.u + ' · ' : ''}P {it.p} · C {it.c ?? 0} · F {it.f ?? 0} · Na {na.toLocaleString()}</div>
+          <div className="mute xs">{it.q === 1 && !isGWord(it.w) && food?.u ? food.u + ' · ' : ''}P {it.p} · C {it.c ?? 0} · F {it.f ?? 0} · Na {na.toLocaleString()}</div>
           {it.x?.length > 0 && <div className="eat-x2 xs">+ {it.x.map((x) => `${x.n} ${fmtAmt(x.a)} ${x.w}`).join(' · ')}</div>}
         </div>
         <span className="num eat-k">{it.k.toLocaleString()}<small> kcal</small></span>

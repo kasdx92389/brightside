@@ -87,8 +87,12 @@ const ADDON_GW = {
 export const addonGw = (ad) => ad?.gw ?? ADDON_GW[ad?.n] ?? null
 
 /** ข้อมูลช่องใส่ปริมาณเมื่อชั่งเป็นกรัม: หน่วยเต็ม = gw กรัม (q = กรัม ÷ gw) */
-export function gramInfo(gw) {
+/** ของเหลว (ฉลากเป็น มล. หรือหมวดเครื่องดื่ม) → ชีทปริมาณให้ "ตวงเป็น มล." แทน "ชั่งเป็นกรัม" (1 มล. ≈ 1 g) */
+export const isLiquid = (food) => /มล\./.test(food?.u || '') || food?.cat === 'drink'
+export const isGWord = (w) => w === 'g' || w === 'มล.'
+
+export function gramInfo(gw, word = 'g') {
   const step = gw < 30 ? 1 : gw < 100 ? 5 : 10
   const snap = (m) => Math.max(step, Math.round((gw * m) / step) * step)
-  return { base: gw, word: 'g', kind: 'g', step, min: step, max: Math.max(2000, gw * 10), presets: [...new Set([0.5, 1, 1.5, 2, 3].map(snap))] }
+  return { base: gw, word, kind: 'g', step, min: step, max: Math.max(2000, gw * 10), presets: [...new Set([0.5, 1, 1.5, 2, 3].map(snap))] }
 }

@@ -586,3 +586,83 @@ console.log('ok — mood, memory, review')
   assert.equal(adv.kind, 'adjust'); assert.match(adv.msg, /ปรึกษาแพทย์/, 'rapid unintended loss mentions doctor')
   console.log('ok — unsafe target + rapid loss guards')
 }
+
+// ───── อาหารญี่ปุ่น ─────
+{
+  const { FOODS, matchName, foodById } = await import('../src/data/foods.js')
+  const by = (n) => FOODS.find((x) => x.n === n)
+  const jp = FOODS.filter((x) => matchName(x.n, 'ข้าวญี่ปุ่น'))
+  assert.ok(jp.length >= 40, 'ค้นหา "ข้าวญี่ปุ่น" ต้องเจอทั้งข้าวสุก ข้าวปั้น ข้าวหน้า แกงกะหรี่ ซูชิ: ' + jp.length)
+  for (const n of ['ข้าวญี่ปุ่นสุก', 'ข้าวซูชิ (ปรุงรส)', 'โอนิกิริไส้แซลมอน', 'ข้าวหน้าเนื้อ (กิวด้ง)', 'ข้าวหน้าไก่ไข่ (โอยาโกะด้ง)', 'ข้าวหน้าหมูทอดไข่ (คัตสึด้ง)', 'ข้าวหน้าปลาไหลย่าง (อุนะด้ง)', 'ข้าวแกงกะหรี่ญี่ปุ่น', 'ซูชิแซลมอน (นิกิริ)', 'แคลิฟอร์เนียโรล', 'มิโสะซุป']) assert.ok(by(n) && matchName(by(n).n, 'ญี่ปุ่น') || by(n), 'missing ' + n)
+  assert.ok(matchName('ซูชิแซลมอน (นิกิริ)', 'ข้าวญี่ปุ่น') && matchName('ข้าวหน้าเนื้อ (กิวด้ง)', 'japanese') && !matchName('ผัดไทยกุ้ง', 'ข้าวญี่ปุ่น') && !matchName('ข้าวหน้าเป็ด', 'ข้าวญี่ปุ่น') && !matchName('อุด้ง', 'ข้าวญี่ปุ่น') && matchName('อุด้ง', 'ญี่ปุ่น'), 'alias search')
+  const rice = by('ข้าวญี่ปุ่นสุก'); assert.ok(rice.k / rice.gw * 100 >= 150 && rice.k / rice.gw * 100 <= 160, 'ข้าวญี่ปุ่นสุก ~155 kcal/100g (หุงหม้อไฟฟ้า)')
+  for (const n of ['ซูชิแซลมอน (นิกิริ)', 'ซูชิทูน่า (นิกิริ)', 'ซูชิกุ้ง (เอบิ)', 'ซูชิไข่หวาน (ทามาโกะ)']) assert.ok(by(n).k >= 40 && by(n).k <= 80, n + ' 40–80 kcal/คำ: ' + by(n).k)
+  for (const n of FOODS.filter((x) => /^ข้าวหน้า|ด้ง[)]|แกงกะหรี่ญี่ปุ่น|คัตสึแกง/.test(x.n) && x.cat === 'world').map((x) => x.n)) assert.ok(by(n).k >= 450 && by(n).k <= 1150, n + ' kcal ' + by(n).k)
+  assert.ok(by("ข้าวหน้าหมูทอดไข่ (คัตสึด้ง)").k < 1000 && by("ข้าวหน้าหมูทอดไข่ (คัตสึด้ง)").k > 800, 'คัตสึด้ง ~900 kcal (ตามที่พบทั่วไป 900–1000)')
+  assert.ok(by('มิโสะซุป').na >= 700 && by('มิโสะซุป').na <= 1100, 'มิโสะซุปโซเดียมสูงตามจริง')
+  assert.equal(by('ข้าวหน้าเนื้อ (กิวด้ง)').u, '1 ชาม', 'หน่วยเดิมของเมนูเก่าไม่เปลี่ยน'); assert.equal(by('ข้าวแกงกะหรี่ญี่ปุ่น').u, '1 จาน')
+  console.log('ok — japanese foods:', jp.length, 'matches')
+}
+
+// ───── ขนมปังแผ่น (ค่าจากฉลาก ต่อแผ่น) ─────
+{
+  const { BREADS } = await import('../src/data/breads.js')
+  const { FOODS, matchName } = await import('../src/data/foods.js')
+  const by = (n) => FOODS.find((x) => x.n === n)
+  assert.ok(BREADS.length >= 16 && new Set(BREADS.map((b) => b.n)).size === BREADS.length, 'ชื่อไม่ซ้ำ')
+  for (const b of BREADS) {
+    const f = by(b.n); assert.ok(f && f.cat === 'rice' && f.gw === b.gw && f.u === '1 แผ่น (' + b.gw + ' g)', 'อยู่ใน FOODS ' + b.n)
+    assert.ok(b.gw >= 20 && b.gw <= 60, 'น้ำหนักแผ่นสมเหตุผล ' + b.n)
+    const { k, p, c, f: fat, na } = b.per100
+    assert.ok(k >= 235 && k <= 320 && na >= 300 && na <= 500, 'ค่าต่อ 100 g อยู่ในช่วงขนมปังแผ่น ' + b.n)
+    assert.ok(Math.abs(4 * p + 4 * c + 9 * fat - k) / k < 0.12, 'macro สอดคล้องกับพลังงาน ' + b.n + ' (' + Math.round(4 * p + 4 * c + 9 * fat) + ' vs ' + k + ')')
+    assert.ok(Math.abs(b.k - (k * b.gw) / 100) <= 0.6, 'ต่อแผ่น = ต่อ 100 g × น้ำหนัก ' + b.n)
+    assert.ok(Math.abs(4 * b.p + 4 * b.c + 9 * b.f - b.k) <= Math.max(8, b.k * 0.15), 'macro ต่อแผ่น ' + b.n)
+  }
+  // ตรงกับฉลากหน่วยบริโภค 2 แผ่นของฟาร์มเฮ้าส์: แผ่นมีขอบ 130/2 แผ่น · ตัดขอบ 140/2 แผ่น · โฮลวีต 130/2 แผ่น
+  assert.equal(by('ขนมปังแผ่น ฟาร์มเฮ้าส์ (มีขอบ)').k * 2, 130); assert.equal(by('ขนมปังตัดขอบ ฟาร์มเฮ้าส์').k * 2, 140); assert.equal(by('ขนมปังโฮลวีต ฟาร์มเฮ้าส์ (มีขอบ)').k * 2, 130)
+  assert.ok(by('ขนมปังรอยัลโฮลวีต สไลด์หนา ฟาร์มเฮ้าส์ (มีขอบ)').k >= 155 && by('ขนมปังรอยัลโฮลวีต สไลด์หนา ฟาร์มเฮ้าส์ (มีขอบ)').k <= 165, 'สไลด์หนา ~160 kcal/แผ่น (ฉลาก)')
+  // ตัดขอบ: ต่อ 100 g ต่ำกว่าแผ่นมีขอบ (255 < 271) แต่แผ่นหนักกว่า
+  const cl = BREADS.find((b) => b.n === 'ขนมปังตัดขอบ ฟาร์มเฮ้าส์'), rg = BREADS.find((b) => b.n === 'ขนมปังแผ่น ฟาร์มเฮ้าส์ (มีขอบ)')
+  assert.ok(cl.per100.k < rg.per100.k && cl.gw > rg.gw)
+  // ค้นหา
+  const q = (s) => FOODS.filter((x) => matchName(x.n, s)).map((x) => x.n)
+  assert.deepEqual(q('ตัดขอบ'), ['ขนมปังตัดขอบ ฟาร์มเฮ้าส์'], '"ตัดขอบ" ต้องไม่ติดแบบมีขอบ')
+  assert.ok(!q('ไม่ตัดขอบ').includes('ขนมปังตัดขอบ ฟาร์มเฮ้าส์') && q('ไม่ตัดขอบ').length >= 4, '"ไม่ตัดขอบ" ได้เฉพาะแบบมีขอบ')
+  assert.ok(q('ฟาร์มเฮ้าส์').length >= 9 && q('farmhouse').length === q('ฟาร์มเฮ้าส์').length && q('โฮวสวีท').length >= 7 && q('whole wheat').length >= 7 && q('ขนมปัง').length >= 20 && q('รอยัล').length === 3, 'ค้นหาไทย/อังกฤษ/คำสะกดผิด')
+  assert.equal(q('ข้าว ต้ม').every((n) => /ข้าว|ต้ม/.test(n)), true, 'ค้นหาอื่นไม่เพี้ยน')
+  assert.equal(by('ขนมปังขาว').u, '1 แผ่น', 'รายการขนมปังเดิมไม่เปลี่ยน')
+  console.log('ok — breads:', BREADS.length, 'products')
+}
+
+// ───── นมโปรตีน/นมพืช (ml) + องุ่นไชน์มัสคัต ─────
+{
+  const { MILKS, MULK } = await import('../src/data/milks.js')
+  const { FRUITS } = await import('../src/data/fruits.js')
+  const { FOODS, matchName } = await import('../src/data/foods.js')
+  const { isLiquid, gramInfo, gramsPerUnit } = await import('../src/data/grams.js')
+  const by = (n) => FOODS.find((x) => x.n === n)
+  assert.ok(MILKS.length >= 40 && new Set(MILKS.map((m) => m.n)).size === MILKS.length && new Set(MILKS.map((m) => m.code)).size === MILKS.length, 'นม ชื่อ/บาร์โค้ดไม่ซ้ำ')
+  for (const m of MILKS) {
+    const f = by(m.n); assert.ok(f && f.cat === 'dairy' && f.gw === m.gw, 'อยู่ใน FOODS ' + m.n)
+    assert.ok(m.gw >= 80 && m.gw <= 500, 'ปริมาตรสมเหตุผล ' + m.n)
+    if (m.liquid) { assert.ok(/ มล.$/.test(m.u) && isLiquid(f), 'ของเหลวใช้หน่วย มล. ' + m.n); assert.equal(gramInfo(gramsPerUnit(f), 'มล.').word, 'มล.') }
+    assert.ok(Math.abs(4 * m.p + 4 * m.c + 9 * m.f - m.k) <= Math.max(10, m.k * 0.2), 'macro ต่อหน่วย ' + m.n + ' ' + m.k + ' vs ' + Math.round(4 * m.p + 4 * m.c + 9 * m.f))
+    assert.ok(Math.abs(m.k - (m.per100.k * m.gw) / 100) <= (m.code === MULK.code ? 0.6 : 0.6), 'ต่อหน่วย = ต่อ 100 × ปริมาตร ' + m.n)
+  }
+  // Mulk+ ตรงฉลากบนกล่อง (ต่อ 400 มล.)
+  const mk = by('Mulk+ นมโปรตีนสูง รสจืด (ปราศจากแลคโตส)')
+  assert.deepEqual([mk.k, mk.p, mk.c, mk.f, mk.na, mk.gw], [300, 39, 23, 4.5, 190, 400], 'ตรงฉลาก')
+  const hp = FOODS.filter((x) => matchName(x.n, 'นมโปรตีน') && x.gw && /มล|ถ้วย/.test(x.u))
+  assert.ok(hp.length >= 12 && hp.every((x) => x.p / x.gw * 100 >= 4.5), 'นมโปรตีนสูงทุกตัวโปรตีน ≥4.5 g/100 มล.: ' + hp.length)
+  assert.ok(matchName(mk.n, 'mulk') && matchName(mk.n, 'high protein') && matchName(mk.n, 'ไร้แลคโตส') && matchName(by('นมถั่วเหลือง โทฟุซัง ออริจินัล').n, 'soy milk') && matchName(by('นมโอ๊ต โอ๊ตลี').n, 'oat'))
+  assert.equal(by('นมจืด (ครบมันเนย)').u, '1 กล่อง 200 มล.', 'นมเดิมไม่เปลี่ยน')
+  assert.ok(isLiquid(by('นมจืด (ครบมันเนย)')) && isLiquid(by('โค้กซีโร่') || by('น้ำเปล่า') || { u: '1 แก้ว', cat: 'drink' }) && !isLiquid(by('ข้าวสวย')) && !isLiquid(by('ขนมปังตัดขอบ ฟาร์มเฮ้าส์')), 'ของเหลว vs ของแข็ง')
+  // องุ่นไชน์มัสคัต: ต่อลูก ต่อถาด และต่อกรัมต้องสอดคล้องกัน (69 kcal/100 g)
+  assert.equal(FRUITS.length, 3)
+  for (const x of FRUITS) { const f = by(x.n); assert.ok(f && f.cat === 'plant' && f.gw === x.gw); assert.ok(Math.abs(f.k / f.gw * 100 - 69) < 0.7, 'kcal/100g ' + x.n + ' ' + (f.k / f.gw * 100)) }
+  assert.ok(by('องุ่นไชน์มัสคัต ผลกลาง').k * 12 > 98 && by('องุ่นไชน์มัสคัต ผลกลาง').k * 12 < 101, '12 ลูกกลาง ≈ 1 ถาด 150 g ≈ 103 kcal')
+  assert.equal(by('องุ่นไชน์มัสคัต (ถาด 150 g)').k, 103.5)
+  assert.ok(matchName(by('องุ่นไชน์มัสคัต ผลกลาง').n, 'shine muscat') && matchName(by('องุ่นไชน์มัสคัต ผลกลาง').n, 'ไชน์มัสแคท') && by('องุ่น').u === '15 ลูก', 'ค้นหา + องุ่นเดิมไม่เปลี่ยน')
+  console.log('ok — milks:', MILKS.length, '· grapes: 3')
+}

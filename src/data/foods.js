@@ -1,6 +1,9 @@
 // อาหารที่คนไทยกินบ่อย — ค่าประมาณต่อ 1 หน่วยบริโภค (อ้างอิงตารางคุณค่าอาหารไทยและ USDA ปัดเลข)
 // [ชื่อ, หน่วย, kcal, โปรตีน g, คาร์บ g, ไขมัน g]  ·  ค่าจริงขึ้นกับสูตรและปริมาณ ใช้เป็นแนวทางเท่านั้น
 import { RECIPES } from './recipes.js'
+import { BREADS } from './breads.js'
+import { FRUITS } from './fruits.js'
+import { MILKS } from './milks.js'
 
 export const FOOD_CATS = [
   ['rice', 'ข้าว-แป้ง'], ['noodle', 'เส้น-ก๋วยเตี๋ยว'], ['meat', 'เนื้อ-ไข่-ปลา'], ['dish-stir', 'กับข้าว ผัด'], ['dish-fry', 'ทอด-ย่าง-ไข่'], ['dish-soup', 'แกง-ต้ม'], ['dish-salad', 'ยำ-ตำ-ลาบ'], ['dish-dip', 'น้ำพริก'],
@@ -466,6 +469,10 @@ for (const r of RECIPES) {
   if (ex) Object.assign(ex, nut)
   else fresh.set(r.n, { id: `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })
 }
+// ขนมปังแผ่นแยกยี่ห้อ/ชนิด (ค่าต่อ 1 แผ่นจากฉลาก) — ชื่อใหม่ทั้งหมด ไม่ทับรายการเดิม
+for (const b of BREADS) if (!byName.has(b.n) && !fresh.has(b.n)) fresh.set(b.n, { id: `${b.cat}-${b.n}`, cat: b.cat, n: b.n, u: b.u, k: b.k, p: b.p, c: b.c, f: b.f, na: b.na, gw: b.gw })
+for (const x of FRUITS) if (!byName.has(x.n) && !fresh.has(x.n)) fresh.set(x.n, { id: `${x.cat}-${x.n}`, cat: x.cat, n: x.n, u: x.u, k: x.k, p: x.p, c: x.c, f: x.f, na: x.na, gw: x.gw })
+for (const m of MILKS) if (!byName.has(m.n) && !fresh.has(m.n)) fresh.set(m.n, { id: `${m.cat}-${m.n}`, cat: m.cat, n: m.n, u: m.u, k: m.k, p: m.p, c: m.c, f: m.f, na: m.na, gw: m.gw })
 export const FOODS = [...BASE_ALL, ...fresh.values()]
 // หมวด "กับข้าว" มีหลายร้อยเมนู → แบ่งกลุ่มย่อยตามวิธีปรุง (ใช้เป็นตัวกรองในหน้าเลือกอาหาร; id/หมวดเดิมไม่เปลี่ยน)
 const dishGroup = (n) => (/น้ำพริก/.test(n) ? 'dish-dip' : /ยำ|ตำ|ลาบ|น้ำตก|พล่า/.test(n) ? 'dish-salad' : /แกง|ต้ม|ซุป/.test(n) ? 'dish-soup' : /ผัด|ฉ่า/.test(n) ? 'dish-stir' : 'dish-fry')
@@ -581,11 +588,16 @@ export function suggestAddons(f) {
 }
 
 // ค้นหา: ทุกคำที่พิมพ์ต้องอยู่ในชื่อ (ไม่สนช่องว่าง/ตัวพิมพ์) เช่น "ไข่ ต้ม" · มีคำอังกฤษพื้นฐาน เช่น egg, tea, coke
-const EN = [[/ไข่/, 'egg'], [/ไก่/, 'chicken'], [/หมู/, 'pork'], [/เนื้อ/, 'beef'], [/ปลา/, 'fish'], [/กุ้ง/, 'shrimp'], [/ข้าว/, 'rice'], [/ต้ม|โจ๊ก/, 'congee soup'],
+const EN = [[/ขนมปัง|โทสต์/, 'bread toast slice แผ่น'], [/องุ่น/, 'grape grapes'], [/โปรตีนสูง|โปรตีนเชค|Mulk/i, 'high protein milk protein นมโปรตีน โปรตีนสูง'], [/เมจิ/, 'meiji'], [/ดัชมิลล์|ดัชชี่/, 'dutch mill dutchmill dutchie'], [/โฟร์โมสต์/, 'foremost'], [/โทฟุซัง/, 'tofusan'], [/ไวตามิ้ลค์|วีซอย/, 'vitamilk v-soy'], [/เบทาเก้น/, 'betagen'], [/ไทย-เดนมาร์ค/, 'thai denmark'], [/โอ๊ตลี/, 'oatly'], [/Mulk/i, 'mulk มัก พลัส มัลค์'], [/ไมโล/, 'milo'], [/โอวัลติน/, 'ovaltine'], [/นมถั่วเหลือง|น้ำเต้าหู้/, 'soy milk soymilk'], [/นมโอ๊ต|นมข้าวโอ๊ต/, 'oat milk'], [/นมอัลมอนด์/, 'almond milk'], [/ไร้แลคโตส|ปราศจากแลคโตส/, 'lactose free ไร้แลคโตส ไม่มีแลคโตส แลคโตส แลกโตส'], [/นมเปรี้ยว|โยเกิร์ต/, 'yogurt yoghurt sour milk'], [/ไชน์มัสคัต/, 'shine muscat ไชน์มัสแคท ไซมัสคัส ไชน์มัสแคต ชายน์มัสแคท'], [/ฟาร์มเฮ้าส์/, 'farmhouse farm house ฟาร์มเฮาส์'], [/ตัดขอบ/, 'crustless crust ตัดขอบ'], [/(?<!ไม่)มีขอบ/, 'crust ไม่ตัดขอบ มีขอบ'], [/โฮลวีต/, 'whole wheat wholewheat wholemeal โฮลวีท โฮวสวีท โฮลวีทต'], [/เทสโก้|โลตัส/, 'tesco lotus'], [/เลอแปง/, 'lepain le pain 7-eleven เซเว่น'], [/ท็อปส์/, 'tops'], [/ซันเมอรี่/, 'sunmerry'],
+  [/ญี่ปุ่น|ซูชิ|ซาชิมิ|โอนิกิริ|ด้ง|ราเมง|อุด้ง|มิโสะ|เทมปุระ|คาราอะเงะ|ทงคัตสึ|เทอริยากิ|ทามาโกะ|คัตสึ|โอมูไรซ์|ยากิเมชิ|โอฉะซึเกะ|แคลิฟอร์เนียโรล/, 'ญี่ปุ่น japanese japan'],
+  [/ซูชิ|โอนิกิริ|ข้าว.*ญี่ปุ่น|กิวด้ง|ด้ง[)]|เทอริยากิ|ทงคัตสึ|คัตสึแกง|โอมูไรซ์|ยากิเมชิ|โอฉะซึเกะ|แคลิฟอร์เนียโรล/, 'ข้าวญี่ปุ่น'],
+  [/ไข่/, 'egg'], [/ไก่/, 'chicken'], [/หมู/, 'pork'], [/เนื้อ/, 'beef'], [/ปลา/, 'fish'], [/กุ้ง/, 'shrimp'], [/ข้าว/, 'rice'], [/ต้ม|โจ๊ก/, 'congee soup'],
   [/ชา/, 'tea'], [/กาแฟ|ลาเต้|คาปู|มอคค่า|อเมริกาโน่|เอสเปรสโซ/, 'coffee'], [/นม|โยเกิร์ต/, 'milk yogurt'], [/ก๋วยเตี๋ยว|เส้น|บะหมี่|สปาเกตตี้|ราเมง|อุด้ง/, 'noodle'], [/โค้ก/, 'coke cola'],
   [/เป๊ปซี่/, 'pepsi cola'], [/แม็กกี้/, 'maggi'], [/แจ่ว/, 'แจ่ม แจ๋ว jaew'], [/น้ำมัน/, 'oil'], [/น้ำตาล/, 'sugar'], [/น้ำปลา/, 'fish sauce'], [/ซอส/, 'sauce'], [/เบียร์/, 'beer'], [/ไวน์/, 'wine'], [/ผัก|สลัด/, 'vegetable salad'],
   [/กล้วย|ส้ม|แอปเปิล|มะม่วง|ฝรั่ง|องุ่น|แตงโม/, 'fruit'], [/เค้ก|ไอศกรีม|คุกกี้|โดนัท/, 'dessert'], [/เบอร์เกอร์|พิซซ่า|ฟรายส์|นักเก็ต/, 'fast food']]
+// "ไม่ตัดขอบ" ต้องไม่ถูกนับเป็น "ตัดขอบ" (คำหนึ่งอยู่ในอีกคำ) → แทนด้วยตัวกันชนก่อนเทียบ ทั้งฝั่งชื่อและคำค้น
+const noCrust = (s) => s.replaceAll('ไม่ตัดขอบ', 'ไม่@ขอบ')
 export const matchName = (name, query) => {
-  const hay = (name + ' ' + EN.filter(([re]) => re.test(name)).map(([, w]) => w).join(' ')).toLowerCase().replace(/\s+/g, '')
-  return query.toLowerCase().split(/\s+/).filter(Boolean).every((t) => hay.includes(t))
+  const hay = noCrust((name + ' ' + EN.filter(([re]) => re.test(name)).map(([, w]) => w).join(' ')).toLowerCase().replace(/\s+/g, ''))
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every((t) => hay.includes(noCrust(t)))
 }
