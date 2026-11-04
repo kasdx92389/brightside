@@ -3,6 +3,7 @@
 import { FOODS, ADDONS } from './foods.js'
 import { INGREDIENTS } from './recipes.js'
 import { sodiumOf, addonSodium } from './sodium.js'
+import { gramsPerUnit, addonGw } from './grams.js'
 
 export const PANTRY_KINDS = [['dish', 'เมนู'], ['veg', 'ผัก'], ['fruit', 'ผลไม้'], ['ing', 'วัตถุดิบ'], ['cond', 'เครื่องปรุง']]
 
@@ -22,9 +23,9 @@ const kindOfFood = (f) => {
 const kindOfIng = (n) => (COND.test(n) ? 'cond' : FRUIT.test(n) ? 'fruit' : VEG.test(n) ? 'veg' : 'ing')
 
 const rows = []
-for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f) })
+for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f), ...(f.ing && { ing: f.ing }), ...(gramsPerUnit(f) && { gw: gramsPerUnit(f) }) })
 const addonNames = new Set(ADDONS.map((a) => a.n))
-for (const a of ADDONS) rows.push({ id: `ad:${a.id}`, kind: a.cat === 'meat' || a.cat === 'extra' ? 'ing' : 'cond', n: a.n, u: `1 ${a.u}`, k: a.k, p: a.p, c: a.c, f: a.f, na: addonSodium(a) })
+for (const a of ADDONS) rows.push({ id: `ad:${a.id}`, kind: a.cat === 'meat' || a.cat === 'extra' ? 'ing' : 'cond', n: a.n, u: `1 ${a.u}`, k: a.k, p: a.p, c: a.c, f: a.f, na: addonSodium(a), ...(addonGw(a) && { gw: addonGw(a) }) })
 for (const [n, [k, p, c, f, na]] of Object.entries(INGREDIENTS)) {
   if (addonNames.has(n)) continue // เครื่องปรุงที่มีหน่วยช้อนอยู่แล้ว ใช้แถวนั้นแทน
   rows.push({ id: `ing-${n}`, kind: kindOfIng(n), n, u: '100 g', k, p: r1(p), c: r1(c), f: r1(f), na })

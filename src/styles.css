@@ -635,3 +635,9 @@ a.mday:hover { background: var(--s2); }
 .pitem { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 0.75rem; border: 1px solid var(--line, #e2e8f0); border-radius: 14px; background: var(--card, #fff); min-width: 0; }
 .pitem .grow { min-width: 0; overflow-wrap: anywhere; }
 .pitem .pfav { position: static; flex: none; box-shadow: none; background: transparent; }
+.pitem-b { text-align: left; background: none; border: 0; padding: 0.125rem 0; color: inherit; font: inherit; cursor: pointer; min-height: 44px; display: block; }
+.pitem-b:active { opacity: 0.7; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.stats > div { display: flex; flex-direction: column; padding: 0.5rem 0.25rem; border: 1px solid var(--line); border-radius: 12px; }
+.stats b { font-size: 1.125rem; }
+@media (max-width: 420px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
