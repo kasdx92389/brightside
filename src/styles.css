@@ -326,8 +326,15 @@ dialog.sheet::backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: bl
 .gauge .pin { position: absolute; top: -24px; translate: -50% 0; font-family: var(--num); font-weight: 700; font-size: 0.9375rem; text-align: center; transition: left 0.4s; }
 .gauge .pin::after { content: ''; display: block; width: 3px; height: 14px; margin: 2px auto 0; background: var(--text); border-radius: 2px; }
 .gauge .ticks { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.75rem; color: var(--mute); font-family: var(--num); }
-.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-@media (min-width: 640px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+/* มือถือ: 4 ใบเรียงแถวเดียวเต็มความกว้าง กึ่งกลาง ความสูงเท่ากัน */
+@media (max-width: 639px) {
+  .stats { gap: 0.5rem; }
+  .stats .stat { padding: 0.75rem 0.25rem; align-items: center; text-align: center; justify-content: flex-start; min-width: 0; }
+  .stats .stat .num { font-size: 1.5rem; white-space: nowrap; }
+  .stats .stat .num small { font-size: 0.6875rem; }
+  .stats .stat small { font-size: 0.75rem; line-height: 1.3; overflow-wrap: anywhere; }
+}
 .stat { box-shadow: var(--shadow); padding: 0.875rem 1rem; background: var(--s1); border: 1px solid var(--line); border-radius: var(--r); display: flex; flex-direction: column; gap: 2px; }
 .stat svg { width: 20px; height: 20px; color: var(--pri-fg); margin-bottom: 4px; }
 .stat .num { font-size: 2rem; line-height: 1.1; }
