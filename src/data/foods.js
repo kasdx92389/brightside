@@ -464,7 +464,7 @@ const BASE_ALL = [...BASE, ...MORE]
 const byName = new Map(BASE_ALL.map((f) => [f.n, f]))
 const fresh = new Map()
 for (const r of RECIPES) {
-  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw }
+  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw, ing: r.ings }
   const ex = byName.get(r.n)
   if (ex) Object.assign(ex, nut)
   else fresh.set(r.n, { id: `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })

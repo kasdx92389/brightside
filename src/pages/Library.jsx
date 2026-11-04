@@ -3,12 +3,15 @@ import { Search, Heart } from 'lucide-react'
 import { EXERCISES, GROUPS, LEVELS, EQUIP, byId } from '../data/exercises.js'
 import { Media, Seg } from '../components/ui.jsx'
 import ExerciseSheet from '../components/ExerciseSheet.jsx'
+import FoodPantry from '../components/FoodPantry.jsx'
+import { PANTRY } from '../data/pantry.js'
 import { useStore, toggleFav } from '../store.js'
 
 const norm = (s) => s.toLowerCase().replace(/\s+/g, '')
 
 /** คลัง: ท่าทั้งหมดตั้งแต่เบสิกถึงมืออาชีพ · onPick = โหมดเลือกท่าสำหรับเพิ่มลงโปรแกรม */
 export default function Library({ openId, onPick, toast }) {
+  const [tab, setTab] = useState('ex') // ex = ท่าออกกำลังกาย · food = คลังอาหาร
   const [q, setQ] = useState('')
   const [lv, setLv] = useState(0)
   const [g, setG] = useState('')
@@ -30,9 +33,11 @@ export default function Library({ openId, onPick, toast }) {
     <div className={onPick ? 'col' : 'page wide'}>
       {!onPick && (
         <header className="page-head">
-          <div><span className="eyebrow">{EXERCISES.length} ท่า</span><h1>คลัง</h1></div>
+          <div><span className="eyebrow">{tab === 'food' ? `${PANTRY.length.toLocaleString()} รายการ` : `${EXERCISES.length} ท่า`}</span><h1>คลัง</h1></div>
         </header>
       )}
+      {!onPick && <Seg label="ประเภทคลัง" value={tab} onChange={setTab} options={[['ex', 'ท่าออกกำลังกาย'], ['food', 'คลังอาหาร']]} />}
+      {tab === 'food' && !onPick ? <FoodPantry /> : <>
       <div className="search">
         <Search aria-hidden="true" />
         <input className="input" type="search" placeholder="ค้นหาท่า กล้ามเนื้อ หรือชื่ออังกฤษ" aria-label="ค้นหาท่า" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -89,6 +94,7 @@ export default function Library({ openId, onPick, toast }) {
         </div>
       )}
       {!onPick && <ExerciseSheet ex={byId[openId]} toast={toast} onClose={() => (location.hash = '#/lib')} />}
+      </>}
     </div>
   )
 }

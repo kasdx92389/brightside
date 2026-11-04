@@ -76,6 +76,7 @@ export function sanitizeState(s, today) {
     weights: series(src.weights, ['kg']).filter((w) => num(w.kg, 20, 400) !== null).map((w) => ({ ...w, kg: Number(w.kg) })).sort((a, b) => a.date.localeCompare(b.date)),
     measures: series(src.measures, ['waist', 'arm', 'chest', 'hip']).sort((a, b) => a.date.localeCompare(b.date)),
     favs: (Array.isArray(src.favs) ? src.favs : []).filter((x) => typeof x === 'string').slice(0, 500),
+    foodFavs: (Array.isArray(src.foodFavs) ? src.foodFavs : []).filter((x) => typeof x === 'string').slice(0, 1000),
     myFoods: (Array.isArray(src.myFoods) ? src.myFoods : []).filter((f) => isObj(f) && typeof f.id === 'string' && typeof f.n === 'string' && ['k', 'p', 'c', 'f'].every((k) => Number.isFinite(Number(f[k])))).slice(0, 300),
     deloadUntil: DATE.test(src.deloadUntil || '') ? src.deloadUntil : null,
     createdAt: DATE.test(src.createdAt || '') ? src.createdAt : today,

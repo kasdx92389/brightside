@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb, Pencil, Soup } from 'lucide-react'
+import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb, Pencil, Soup, Shuffle, Heart } from 'lucide-react'
 import { Seg, Sheet } from './ui.jsx'
 import { unitInfo, fmtAmt } from '../lib/units.js'
 import { FOODS, FOOD_CATS, foodById, ADDON_GROUPS, ADDONS, addonById, addonStep, suggestAddons, matchName } from '../data/foods.js'
@@ -8,6 +8,7 @@ import { addDays } from '../lib/coach.js'
 import { isLiquid, isGWord, gramsPerUnit, gramInfo, addonGw } from '../data/grams.js'
 import { sodiumOf, addonSodium, itemSodium } from '../data/sodium.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
+import { suggestFoods } from '../lib/suggest.js'
 import { patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
 
 const ML = 250 // 1 แก้ว
@@ -17,15 +18,7 @@ const r2 = (v) => Math.round(v * 100) / 100
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
 const slotNow = () => { const h = new Date().getHours(); return h < 10 ? 0 : h < 15 ? 1 : h < 18 ? 3 : 2 }
 
-/** อาหารที่ช่วยเติมโปรตีนที่ยังขาด โดยไม่เกินพลังงานที่เหลือ — เรียงตามโปรตีนต่อแคลอรี่ ไม่ซ้ำหมวด */
-export function suggestFoods(remP, remK) {
-  if (remP < 10) return []
-  const seen = new Set()
-  return FOODS.filter((f) => ['meat', 'dish', 'dairy', 'plant', 'meal'].includes(f.cat) && f.p >= 8 && f.p <= remP + 10 && f.k <= Math.max(150, remK))
-    .sort((a, b) => b.p / b.k - a.p / a.k)
-    .filter((f) => !seen.has(f.cat) && seen.add(f.cat))
-    .slice(0, 3)
-}
+export { suggestFoods }
 
 function Bar({ icon: Icon, label, value, goal, unit, over, limit }) {
   const pct = goal ? value / goal : 0
@@ -215,6 +208,8 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const wg = t.glasses(train)
   const proteinGoal = Math.round((t.protein[0] + t.protein[1]) / 2)
   const [slot, setSlot] = useState(slotNow)
+  const [shuf, setShuf] = useState(0) // กด "สุ่มใหม่" เพื่อเปลี่ยนชุดเมนูแนะนำ
+  const foodFavs = useStore((s) => s.foodFavs)
   const [sel, setSel] = useState(null) // อาหารที่กำลังเลือกปริมาณ
   const [edit, setEdit] = useState(null) // แก้ไขรายการที่บันทึกแล้ว: { i, s, init }
   const closeSheet = () => { setSel(null); setEdit(null) }
@@ -299,7 +294,12 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const clearExtra = () => { patchFood(date, { kcal: sumI('k'), protein: r1(sumI('p')), carb: r1(sumI('c')), fat: r1(sumI('f')) }); toast?.('ล้างยอดที่ไม่มีรายการแล้ว') }
   const sodiumNow = items.reduce((n, it) => n + itemSodium(it, byId), 0)
   const remK = t.kcal - (f.kcal || 0), remP = proteinGoal - (f.protein || 0)
-  const sugg = isToday ? suggestFoods(remP, remK) : []
+  const recent = useMemo(() => {
+    const m = {}
+    for (let i = 0; i < 4; i++) for (const it of logs[addDays(date, -i)]?.food?.items || []) if (m[it.id] == null) m[it.id] = i
+    return m
+  }, [logs, date])
+  const sugg = useMemo(() => (isToday ? suggestFoods(remP, remK, { favs: foodFavs, recent, seed: `${date}:${shuf}` }) : []), [isToday, Math.round(remP / 5), Math.round(remK / 50), foodFavs, recent, date, shuf]) // eslint-disable-line react-hooks/exhaustive-deps
   const h = new Date().getHours() + new Date().getMinutes() / 60
   const expected = wg * clamp((h - 7) / 14, 0, 1) // ควรดื่มทยอยตลอดวัน 07:00–21:00
   const pace = !isToday ? '' : water >= wg ? 'ดื่มครบเป้าแล้ว เก่งมาก' : expected - water >= 1
@@ -328,15 +328,15 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
           <Bar icon={Wheat} label="คาร์บ" value={f.carb || 0} goal={t.carb} unit="g" />
           <Bar icon={Droplet} label="ไขมัน" value={f.fat || 0} goal={t.fat} unit="g" over />
           <Bar icon={Soup} label="โซเดียม" value={sodiumNow} goal={t.sodium} unit="มก." limit />
-          <p className="hint">เหลือ {remK > 0 ? `${remK.toLocaleString()} kcal` : 'พลังงานเกินเป้าแล้ว'} · โปรตีนอีก {Math.max(0, remP)} g · เป้าของคุณคำนวณจาก BMI อายุ และเป้าหมาย (ดูรายละเอียดที่หน้า “ฉัน”)</p>
+          <p className="hint">เหลือ {remK > 0 ? `${Math.round(remK).toLocaleString()} kcal` : 'พลังงานเกินเป้าแล้ว'} · โปรตีนอีก {Math.max(0, Math.round(remP))} g · เป้าของคุณคำนวณจาก BMI อายุ และเป้าหมาย (ดูรายละเอียดที่หน้า “ฉัน”)</p>
           <p className="hint">{sodiumNow >= t.sodium ? 'โซเดียมเกินเป้าแล้ว มื้อต่อไปลดน้ำซุป น้ำจิ้ม และเครื่องปรุง · ' : ''}โซเดียมเป็นค่าประมาณจากเมนู ไม่รวมเกลือหรือน้ำปลาที่เติมเองถ้าไม่ได้เพิ่มรายการ (เพิ่มได้ที่ “เพิ่มรายละเอียด”)</p>
         </section>
 
         {sugg.length > 0 && (
           <section className="nudge sugg-box">
-            <span className="row" style={{ gap: '0.5rem' }}><Lightbulb aria-hidden="true" /> <b>โปรตีนยังขาด {Math.max(0, remP)} g ลองกิน</b></span>
+            <span className="row" style={{ gap: '0.5rem' }}><Lightbulb aria-hidden="true" /> <b className="grow">โปรตีนยังขาด {Math.max(0, Math.round(remP))} g ลองกิน</b><button type="button" className="btn sm grow-0" onClick={() => setShuf(shuf + 1)} aria-label="สุ่มเมนูแนะนำใหม่"><Shuffle /> สุ่มใหม่</button></span>
             <span className="sugg">
-              {sugg.map((x) => <button key={x.id} className="btn sm" onClick={() => add(x, 1)}><span className="row" style={{ gap: '0.5rem' }}><Plus /> {x.n}</span><span className="mute">+{x.p} g</span></button>)}
+              {sugg.map((x) => <button key={x.id} className="btn sm" onClick={() => add(x, 1)}><span className="row" style={{ gap: '0.5rem' }}><Plus /> {x.n}</span><span className="mute">+{r1(x.p)} g{x.why ? <> · <Heart aria-hidden="true" style={{ width: 12, height: 12, verticalAlign: '-1px' }} /> {x.why}</> : ''}</span></button>)}
             </span>
           </section>
         )}

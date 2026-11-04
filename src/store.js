@@ -8,7 +8,7 @@ import { fixPlan } from './lib/safety.js'
 import { sanitizeState } from './lib/sanitize.js'
 
 const KEY = 'brightside:v1'
-const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
+const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], foodFavs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
 
 const load = () => {
   try { return { ...EMPTY, ...sanitizeState(JSON.parse(localStorage.getItem(KEY)), dateKey()) } } catch { return EMPTY }
@@ -68,6 +68,8 @@ export const addWeight = (kg, date = dateKey()) =>
 export const addMeasure = (m, date = dateKey()) =>
   update((s) => ({ ...s, measures: s.measures.filter((x) => x.date !== date).concat({ ...m, date }).sort(byDate) }))
 
+export const toggleFoodFav = (id) =>
+  update((s) => { const a = s.foodFavs || []; return { ...s, foodFavs: a.includes(id) ? a.filter((x) => x !== id) : [...a, id] } })
 export const toggleFav = (id) =>
   update((s) => ({ ...s, favs: s.favs.includes(id) ? s.favs.filter((x) => x !== id) : [...s.favs, id] }))
 

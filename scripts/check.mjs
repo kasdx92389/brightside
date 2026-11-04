@@ -367,7 +367,7 @@ console.log('ok — nutrition')
   assert.equal(getState().logs[d].finished ?? false, false)
 }
 { // ซิงก์: อารมณ์อยู่ในล็อกรายวัน → ฝั่งที่แก้ใหม่กว่าชนะทั้งวัน และไม่ทำให้ merge พัง
-  const base = { profile: null, plan: null, favs: [], myFoods: [], deloadUntil: null, weights: [], measures: [], createdAt: '2026-01-01' }
+  const base = { profile: null, plan: null, favs: [], foodFavs: [], myFoods: [], deloadUntil: null, weights: [], measures: [], createdAt: '2026-01-01' }
   const a = { ...base, logs: { '2026-01-15': { sets: {}, mood: { m: 'joy', note: 'a', at: 1 } } }, mod: { 'logs/2026-01-15': 100 } }
   const b = { ...base, logs: { '2026-01-15': { sets: {}, mood: { m: 'sad', note: 'b', at: 2 } } }, mod: { 'logs/2026-01-15': 200 } }
   assert.equal(merge(a, b).logs['2026-01-15'].mood.m, 'sad'); assert.equal(merge(b, a).logs['2026-01-15'].mood.m, 'sad')
@@ -565,7 +565,7 @@ console.log('ok — mood, memory, review')
     const m = rnd() < 0.15 ? junk() : mutate(JSON.parse(JSON.stringify(good)))
     let out
     assert.doesNotThrow(() => { out = sanitizeState(m, today) }, 'sanitize threw on ' + i)
-    assert.ok(out.logs && typeof out.logs === 'object' && Array.isArray(out.weights) && Array.isArray(out.measures) && Array.isArray(out.favs) && Array.isArray(out.myFoods))
+    assert.ok(out.logs && typeof out.logs === 'object' && Array.isArray(out.weights) && Array.isArray(out.measures) && Array.isArray(out.favs) && Array.isArray(out.foodFavs) && Array.isArray(out.myFoods))
     for (const w of out.weights) assert.ok(Number.isFinite(w.kg) && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(w.date))
     for (const [d, l] of Object.entries(out.logs)) { assert.ok(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(d) && l.sets && typeof l.sets === 'object' && !Array.isArray(l.sets)); for (const a of Object.values(l.sets)) assert.ok(Array.isArray(a)); if (l.mood) assert.ok(MOOD_BY[l.mood.m] && l.mood.note.length <= NOTE_MAX) }
     if (out.profile) { kept++; const t = targets(out.profile); assert.ok(Number.isFinite(t.kcal) && t.kcal > 0, 'targets NaN from sanitized profile ' + JSON.stringify(out.profile)); assert.ok(generatePlan({ ...out.profile }).days.length === 7) } else nulled++
@@ -665,4 +665,34 @@ console.log('ok — mood, memory, review')
   assert.equal(by('องุ่นไชน์มัสคัต (ถาด 150 g)').k, 103.5)
   assert.ok(matchName(by('องุ่นไชน์มัสคัต ผลกลาง').n, 'shine muscat') && matchName(by('องุ่นไชน์มัสคัต ผลกลาง').n, 'ไชน์มัสแคท') && by('องุ่น').u === '15 ลูก', 'ค้นหา + องุ่นเดิมไม่เปลี่ยน')
   console.log('ok — milks:', MILKS.length, '· grapes: 3')
+}
+
+{ // คลังอาหาร + เมนูแนะนำ
+  const { PANTRY, PANTRY_KINDS } = await import('../src/data/pantry.js')
+  const { suggestFoods, usesIngredient } = await import('../src/lib/suggest.js')
+  assert.equal(new Set(PANTRY.map((x) => x.id)).size, PANTRY.length, 'pantry id dup')
+  assert.ok(PANTRY.length > FOODS.length + 100, 'pantry has ingredients + condiments')
+  assert.ok(PANTRY.every((x) => PANTRY_KINDS.some(([k]) => k === x.kind) && x.n && Number.isFinite(x.k) && Number.isFinite(x.na)), 'pantry rows')
+  for (const k of ['dish', 'veg', 'fruit', 'ing', 'cond']) assert.ok(PANTRY.some((x) => x.kind === k), 'pantry kind ' + k)
+  assert.ok(PANTRY.some((x) => x.n === 'น้ำปลา') && PANTRY.some((x) => x.n === 'แครอท') && PANTRY.some((x) => x.n === 'กล้วยหอม'), 'pantry has condiment/veg/fruit')
+  assert.equal(PANTRY.filter((x) => x.n === 'น้ำปลา').length, 1, 'no duplicate names between addon and ingredient')
+  const ids = (a) => a.map((x) => x.id)
+  const base = suggestFoods(60, 1500, { seed: 'a' })
+  assert.equal(base.length, 3)
+  assert.deepEqual(ids(base), ids(suggestFoods(60, 1500, { seed: 'a' })), 'ตัวสุ่มคงที่ตาม seed')
+  const seen = new Set(); for (let i = 0; i < 30; i++) ids(suggestFoods(60, 1500, { seed: 'd' + i })).forEach((id) => seen.add(id))
+  assert.ok(seen.size >= 15, 'หมุนเวียนหลากหลาย ' + seen.size)
+  for (let i = 0; i < 30; i++) { const s = suggestFoods(57.9000000006, 1495, { seed: 'z' + i }); assert.ok(s.every((x) => x.p >= 8 && x.k <= 1495 && !/น้ำสลัด|ซอส|น้ำจิ้ม/.test(x.n) && x.cat !== 'drink' && x.cat !== 'snack'), 'suggest filter') }
+  assert.deepEqual(suggestFoods(5, 1000), [], 'ขาดน้อยไม่แนะนำ')
+  const tuna = FOODS.find((x) => x.n === 'ปลาทูน่ากระป๋อง (ในน้ำ)')
+  const hearted = suggestFoods(60, 1500, { seed: 'a', favs: [tuna.id] })
+  assert.ok(ids(hearted).includes(tuna.id) && hearted.find((x) => x.id === tuna.id).why, 'เมนูที่กดหัวใจได้รับเลือก')
+  const recent = Object.fromEntries(ids(base).map((id) => [id, 0]))
+  assert.ok(!ids(suggestFoods(60, 1500, { seed: 'a', recent })).some((id) => id in recent), 'เมนูที่กินวันนี้ไม่ซ้ำ')
+  // กดหัวใจเครื่องปรุง/วัตถุดิบ → แนะนำเมนูที่ใช้ของนั้น ไม่แนะนำตัวเครื่องปรุงเอง
+  const fish = suggestFoods(60, 1500, { seed: 'q', favs: ['ad:sauce-น้ำปลา'] }), kale = suggestFoods(60, 1500, { seed: 'q', favs: ['ing-คะน้า'] })
+  assert.ok(fish.every((x) => !/^(ad:|ing-)/.test(x.id)) && kale.every((x) => !x.id.startsWith('ing-')), 'ไม่แนะนำเครื่องปรุงเดี่ยวๆ')
+  assert.ok(kale.some((x) => usesIngredient(x, 'คะน้า')), 'มีเมนูที่ใช้คะน้า')
+  assert.ok(FOODS.filter((x) => usesIngredient(x, 'น้ำปลา')).length > 20, 'หาเมนูที่ใช้น้ำปลาได้')
+  console.log(`ok — pantry ${PANTRY.length} items · suggestions rotate (${seen.size} distinct in 30 shuffles)`)
 }

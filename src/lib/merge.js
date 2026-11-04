@@ -3,7 +3,7 @@
 // ทุกรายการเลือกฝั่งที่ ts ใหม่กว่า · ถ้ารายการนั้นถูกลบ ts ใหม่กว่าจะชนะและรายการหายไป (ไม่ต้องมี tombstone แยก)
 // ข้อมูลเก่าก่อนมีระบบซิงก์ไม่มี ts (=0): ถ้าฝั่งใดฝั่งหนึ่งมีก็เอา (union) ถ้าชนกันให้ฝั่ง a (เครื่องนี้) ก่อน
 
-const SCALARS = ['profile', 'plan', 'favs', 'myFoods', 'deloadUntil']
+const SCALARS = ['profile', 'plan', 'favs', 'foodFavs', 'myFoods', 'deloadUntil']
 const has = (v) => v !== undefined && v !== null
 
 /** ใส่ ts ให้ทุกรายการที่ต่างจากเดิม — เรียกทุกครั้งที่ state เปลี่ยนโดยผู้ใช้ */
@@ -42,7 +42,7 @@ export function merge(a, b) {
   const out = { ...a, createdAt: [a.createdAt, b.createdAt].filter(Boolean).sort()[0] }
   for (const k of SCALARS) {
     const { v, t } = pick(k, a, b, () => a[k], () => b[k])
-    out[k] = has(v) ? v : (k === 'favs' || k === 'myFoods' ? [] : null)
+    out[k] = has(v) ? v : (k === 'favs' || k === 'foodFavs' || k === 'myFoods' ? [] : null)
     if (t) mod[k] = t
   }
   const keyed = (pre, field, list) => {

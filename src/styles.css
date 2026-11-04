@@ -628,3 +628,10 @@ a.mday:hover { background: var(--s2); }
 @media (max-width: 639px) {
   .col > .btn, .card > .btn, form.col > .btn { align-self: stretch !important; width: 100%; justify-content: center; text-align: center; white-space: normal; }
 }
+
+/* คลังอาหาร */
+.pantry { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (min-width: 640px) { .pantry { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pitem { display: flex; align-items: center; gap: 0.5rem; padding: 0.625rem 0.75rem; border: 1px solid var(--line, #e2e8f0); border-radius: 14px; background: var(--card, #fff); min-width: 0; }
+.pitem .grow { min-width: 0; overflow-wrap: anywhere; }
+.pitem .pfav { position: static; flex: none; box-shadow: none; background: transparent; }

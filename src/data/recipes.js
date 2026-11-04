@@ -42,13 +42,14 @@ const NAMES = Object.keys(ING).sort((a, b) => b.length - a.length)
 /** 'ผักกาดขาว150 น้ำมัน10' → ผลรวมสารอาหาร + น้ำหนักรวม */
 function calc(spec) {
   let k = 0, p = 0, c = 0, f = 0, na = 0, g = 0
+  const ings = []
   for (const tok of spec.trim().split(/\s+/)) {
     const m = tok.match(/^(\D+?)(\d+(?:\.\d+)?)$/)
     if (!m || !ING[m[1]]) throw new Error('recipe token ไม่รู้จัก: ' + tok + ' ใน ' + spec)
     const [a, b, d, e, n] = ING[m[1]], w = Number(m[2]) / 100
-    k += a * w; p += b * w; c += d * w; f += e * w; na += n * w; g += Number(m[2])
+    ings.push(m[1]); k += a * w; p += b * w; c += d * w; f += e * w; na += n * w; g += Number(m[2])
   }
-  return { k, p, c, f, na, g }
+  return { k, p, c, f, na, g, ings }
 }
 
 // สูตร: [ชื่อเมนู, หมวด, หน่วย, ตัวคูณน้ำหนักหลังปรุง, สูตร]   (ชื่อตรงกับเมนูเดิม = ปรับค่าเมนูเดิมให้ตรงสูตร · ชื่อใหม่ = เพิ่มเมนู)
@@ -359,7 +360,7 @@ export const RECIPES = R.map((r) => {
   return {
     n: r.n, cat: r.cat, u: r.u,
     k: Math.round(t.k / 5) * 5, p: Math.round(t.p * 10) / 10, c: Math.round(t.c * 10) / 10, f: Math.round(t.f * 10) / 10,
-    na: Math.round(t.na / 10) * 10, gw: Math.round((t.g * r.y) / 5) * 5,
+    na: Math.round(t.na / 10) * 10, gw: Math.round((t.g * r.y) / 5) * 5, ings: [...new Set(t.ings)],
   }
 })
 export const INGREDIENTS = ING
