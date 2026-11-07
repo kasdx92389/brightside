@@ -554,7 +554,7 @@ dialog:focus { outline: none; }
 .medals .mi svg { width: 20px; height: 20px; }
 .chart .goal { stroke: var(--ok-fg); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .chart .goal-t { fill: var(--ok-fg); font-weight: 600; }
-.week .skip i { background: transparent; border: 1.5px dashed var(--line); }
+.week .skip i { background: rgba(255, 194, 74, 0.22); color: var(--warn-fg); }
 .warnbar { position: sticky; top: 0; z-index: 50; padding: 0.625rem 1rem; background: #fff1f2; color: var(--bad-fg); border-bottom: 1px solid #fecdd3; font-size: 0.875rem; text-align: center; }
 .crash { min-height: 100dvh; display: grid; place-content: center; gap: 1rem; padding: 2rem; text-align: center; max-width: 480px; margin: auto; }
 

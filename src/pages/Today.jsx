@@ -161,7 +161,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           return (
             <a key={k} href={`#/today/${k}`} className={st} aria-current={k === date ? 'date' : undefined} aria-label={`${DAY_TH[i]} ${STATUS_TH[st]}`}>
               {DAY_SHORT[i]}
-              <i>{st === 'done' && <Check />}</i>
+              <i>{st === 'done' && <Check />}{st === 'skip' && <Moon />}</i>
             </a>
           )
         })}
