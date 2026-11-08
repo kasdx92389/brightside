@@ -473,7 +473,7 @@ for (const r of RECIPES) {
 }
 // ขนมปังแผ่นแยกยี่ห้อ/ชนิด (ค่าต่อ 1 แผ่นจากฉลาก) — ชื่อใหม่ทั้งหมด ไม่ทับรายการเดิม
 for (const b of BREADS) if (!byName.has(b.n) && !fresh.has(b.n)) fresh.set(b.n, { id: `${b.cat}-${b.n}`, cat: b.cat, n: b.n, u: b.u, k: b.k, p: b.p, c: b.c, f: b.f, na: b.na, gw: b.gw })
-for (const x of FRUITS) if (!byName.has(x.n) && !fresh.has(x.n)) fresh.set(x.n, { id: `${x.cat}-${x.n}`, cat: x.cat, n: x.n, u: x.u, k: x.k, p: x.p, c: x.c, f: x.f, na: x.na, gw: x.gw })
+for (const x of FRUITS) if (!byName.has(x.n) && !fresh.has(x.n)) fresh.set(x.n, { id: `${x.cat}-${x.n}`, cat: x.cat, n: x.n, u: x.u, k: x.k, p: x.p, c: x.c, f: x.f, na: x.na, gw: x.gw, ...(x.sg != null && { sg: x.sg, su: x.su }) })
 for (const m of MILKS) if (!byName.has(m.n) && !fresh.has(m.n)) fresh.set(m.n, { id: `${m.cat}-${m.n}`, cat: m.cat, n: m.n, u: m.u, k: m.k, p: m.p, c: m.c, f: m.f, na: m.na, gw: m.gw, ...(m.sg != null && { sg: m.sg }) })
 export const FOODS = [...BASE_ALL, ...fresh.values()]
 // หมวด "กับข้าว" มีหลายร้อยเมนู → แบ่งกลุ่มย่อยตามวิธีปรุง (ใช้เป็นตัวกรองในหน้าเลือกอาหาร; id/หมวดเดิมไม่เปลี่ยน)

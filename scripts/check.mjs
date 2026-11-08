@@ -659,8 +659,11 @@ console.log('ok — mood, memory, review')
   assert.equal(by('นมจืด (ครบมันเนย)').u, '1 กล่อง 200 มล.', 'นมเดิมไม่เปลี่ยน')
   assert.ok(isLiquid(by('นมจืด (ครบมันเนย)')) && isLiquid(by('โค้กซีโร่') || by('น้ำเปล่า') || { u: '1 แก้ว', cat: 'drink' }) && !isLiquid(by('ข้าวสวย')) && !isLiquid(by('ขนมปังตัดขอบ ฟาร์มเฮ้าส์')), 'ของเหลว vs ของแข็ง')
   // องุ่นไชน์มัสคัต: ต่อลูก ต่อถาด และต่อกรัมต้องสอดคล้องกัน (69 kcal/100 g)
-  assert.equal(FRUITS.length, 3)
-  for (const x of FRUITS) { const f = by(x.n); assert.ok(f && f.cat === 'plant' && f.gw === x.gw); assert.ok(Math.abs(f.k / f.gw * 100 - 69) < 0.7, 'kcal/100g ' + x.n + ' ' + (f.k / f.gw * 100)) }
+  const GRAPES = FRUITS.filter((x) => /องุ่น/.test(x.n))
+  assert.equal(GRAPES.length, 3)
+  const mg = by('มะม่วงเขย่าพริกเกลือ 7-Eleven (Oh! Fruity)')
+  assert.ok(mg && mg.cat === 'plant' && mg.gw === 154 && mg.sg === 17 && mg.su === 4, 'มะม่วงเขย่า 7-Eleven')
+  for (const x of GRAPES) { const f = by(x.n); assert.ok(f && f.cat === 'plant' && f.gw === x.gw); assert.ok(Math.abs(f.k / f.gw * 100 - 69) < 0.7, 'kcal/100g ' + x.n + ' ' + (f.k / f.gw * 100)) }
   assert.ok(by('องุ่นไชน์มัสคัต ผลกลาง').k * 12 > 98 && by('องุ่นไชน์มัสคัต ผลกลาง').k * 12 < 101, '12 ลูกกลาง ≈ 1 ถาด 150 g ≈ 103 kcal')
   assert.equal(by('องุ่นไชน์มัสคัต (ถาด 150 g)').k, 103.5)
   assert.ok(matchName(by('องุ่นไชน์มัสคัต ผลกลาง').n, 'shine muscat') && matchName(by('องุ่นไชน์มัสคัต ผลกลาง').n, 'ไชน์มัสแคท') && by('องุ่น').u === '15 ลูก', 'ค้นหา + องุ่นเดิมไม่เปลี่ยน')
