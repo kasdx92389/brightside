@@ -282,6 +282,7 @@ dialog.sheet::backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: bl
 .week i svg { width: 14px; height: 14px; }
 .week .done i { background: var(--ok); color: #03180d; }
 .week .rest i { background: transparent; border: 1.5px dashed var(--line); }
+.week .rest i svg { color: var(--info-fg); }
 .week .pre i { background: transparent; }
 .week .miss i { background: transparent; border: 1.5px solid var(--bad); }
 

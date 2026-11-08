@@ -466,7 +466,7 @@ const fresh = new Map()
 // เมนูที่เปลี่ยนชื่อแล้ว: คง id เดิมไว้ให้รายการที่เคยบันทึกยังเปิดแก้ได้
 const LEGACY_ID = { 'ข้าวญี่ปุ่น': 'rice-ข้าวญี่ปุ่นสุก' }
 for (const r of RECIPES) {
-  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, su: r.su, gw: r.gw, ing: r.ings, amt: r.amt, ...(r.isan && { isan: 1 }) }
+  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, su: r.su, sg: r.sg, gw: r.gw, ing: r.ings, amt: r.amt, ...(r.isan && { isan: 1 }) }
   const ex = byName.get(r.n)
   if (ex) Object.assign(ex, nut)
   else fresh.set(r.n, { id: LEGACY_ID[r.n] || `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })
@@ -474,7 +474,7 @@ for (const r of RECIPES) {
 // ขนมปังแผ่นแยกยี่ห้อ/ชนิด (ค่าต่อ 1 แผ่นจากฉลาก) — ชื่อใหม่ทั้งหมด ไม่ทับรายการเดิม
 for (const b of BREADS) if (!byName.has(b.n) && !fresh.has(b.n)) fresh.set(b.n, { id: `${b.cat}-${b.n}`, cat: b.cat, n: b.n, u: b.u, k: b.k, p: b.p, c: b.c, f: b.f, na: b.na, gw: b.gw })
 for (const x of FRUITS) if (!byName.has(x.n) && !fresh.has(x.n)) fresh.set(x.n, { id: `${x.cat}-${x.n}`, cat: x.cat, n: x.n, u: x.u, k: x.k, p: x.p, c: x.c, f: x.f, na: x.na, gw: x.gw })
-for (const m of MILKS) if (!byName.has(m.n) && !fresh.has(m.n)) fresh.set(m.n, { id: `${m.cat}-${m.n}`, cat: m.cat, n: m.n, u: m.u, k: m.k, p: m.p, c: m.c, f: m.f, na: m.na, gw: m.gw })
+for (const m of MILKS) if (!byName.has(m.n) && !fresh.has(m.n)) fresh.set(m.n, { id: `${m.cat}-${m.n}`, cat: m.cat, n: m.n, u: m.u, k: m.k, p: m.p, c: m.c, f: m.f, na: m.na, gw: m.gw, ...(m.sg != null && { sg: m.sg }) })
 export const FOODS = [...BASE_ALL, ...fresh.values()]
 // หมวด "กับข้าว" มีหลายร้อยเมนู → แบ่งกลุ่มย่อยตามวิธีปรุง (ใช้เป็นตัวกรองในหน้าเลือกอาหาร; id/หมวดเดิมไม่เปลี่ยน)
 const dishGroup = (n) => (/น้ำพริก|แจ่วบอง|แจ่วมะขาม|ปลาร้าทรงเครื่อง/.test(n) ? 'dish-dip' : /ยำ|ตำ|ลาบ|น้ำตก|พล่า|ก้อย|ซอยจุ๊/.test(n) ? 'dish-salad' : /แกง|ต้ม|ซุป|อ่อม/.test(n) ? 'dish-soup' : /ผัด|ฉ่า/.test(n) ? 'dish-stir' : 'dish-fry')
