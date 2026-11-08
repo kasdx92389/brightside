@@ -1,7 +1,7 @@
 // หักล้างส่วนที่ซ้ำ: เมนูทอด/ผัด/ปรุงสำเร็จรวมน้ำมันและเครื่องปรุงมาตรฐานไว้ในค่าแล้ว
 // ถ้าผู้ใช้เลือกเพิ่ม "น้ำมัน/เครื่องปรุงชนิดเดียวกัน" ด้วยปริมาณที่ใช้จริง ให้ถือว่าแทนที่ค่ามาตรฐานของเมนู (ไม่นับซ้ำสองชั้น)
 // ไม่ได้เลือก = คิดตามค่ามาตรฐานของเมนูเหมือนเดิม
-import { INGREDIENTS } from '../data/recipes.js'
+import { INGREDIENTS, ingSugar } from '../data/recipes.js'
 import { kindOfIng } from '../data/pantry.js'
 
 const TYPES = new Set(['oil', 'sauce', 'powder', 'sweet']) // ชนิดของส่วนเสริมที่มีค่ามาตรฐานรวมอยู่ในเมนู
@@ -22,6 +22,6 @@ export function credits(food, picked, q) {
   for (const ad of picked) for (const n of replaces(food, ad)) names.add(n)
   return [...names].map((name) => {
     const g = food.amt[name] * q, v = INGREDIENTS[name], w = g / 100
-    return { name, g: Math.round(g * 10) / 10, k: Math.round(v[0] * w), p: Math.round(v[1] * w * 10) / 10, c: Math.round(v[2] * w * 10) / 10, f: Math.round(v[3] * w * 10) / 10, na: Math.round(v[4] * w) }
+    return { name, g: Math.round(g * 10) / 10, k: Math.round(v[0] * w), p: Math.round(v[1] * w * 10) / 10, c: Math.round(v[2] * w * 10) / 10, f: Math.round(v[3] * w * 10) / 10, na: Math.round(v[4] * w), su: Math.round(ingSugar(name) * w * 10) / 10 }
   })
 }

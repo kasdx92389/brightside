@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb, Pencil, Soup, Shuffle, Heart, Undo2 } from 'lucide-react'
+import { Droplets, Beef, Zap, Wheat, Droplet, Plus, Minus, X, Search, Lightbulb, Pencil, Soup, Shuffle, Heart, Undo2, Candy } from 'lucide-react'
 import { Seg, Sheet } from './ui.jsx'
 import { unitInfo, fmtAmt } from '../lib/units.js'
 import { FOODS, FOOD_CATS, foodById, ADDON_GROUPS, ADDONS, addonById, addonStep, suggestAddons, matchName } from '../data/foods.js'
@@ -7,6 +7,7 @@ import { targets, MEAL_SLOTS } from '../lib/calc.js'
 import { addDays } from '../lib/coach.js'
 import { isLiquid, isGWord, gramsPerUnit, gramInfo, addonGw } from '../data/grams.js'
 import { sodiumOf, addonSodium, itemSodium } from '../data/sodium.js'
+import { sugarOf, addonSugar, itemSugar } from '../data/sugar.js'
 import { INGREDIENT_ADDONS, ingAddonById } from '../data/pantry.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { suggestFoods } from '../lib/suggest.js'
@@ -50,7 +51,7 @@ function fromItem(it) {
     } else {
       // ชื่อที่ถูกเปลี่ยน/ลบไปแล้ว: ใช้ค่าต่อหน่วยจากที่บันทึกไว้
       const id = `old-${i}`
-      lookup[id] = { id, cat: 'old', n: x.n, u: x.w, na: (x.na || 0) / x.a, k: x.k / x.a, p: x.p / x.a, c: x.c / x.a, f: x.f / x.a, ...(isGWord(x.w) && { gw: 1 }) }
+      lookup[id] = { id, cat: 'old', n: x.n, u: x.w, na: (x.na || 0) / x.a, su: (x.su || 0) / x.a, k: x.k / x.a, p: x.p / x.a, c: x.c / x.a, f: x.f / x.a, ...(isGWord(x.w) && { gw: 1 }) }
       ex[id] = x.a
       if (isGWord(x.w)) gm[id] = true
     }
@@ -94,6 +95,8 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const sumX = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0) - crX(k)
   const sumNa = picked.reduce((s, [ad, n]) => s + addonSodium(ad) * n, 0) - crX('na')
   const foodNa = sodiumOf(food)
+  const sumSu = picked.reduce((s, [ad, n]) => s + addonSugar(ad) * n, 0) - crX('su')
+  const foodSu = sugarOf(food)
   const setX = (id, n) => setEx((cur) => { const o = { ...cur }; if (!(n > 0.0001)) delete o[id]; else o[id] = Math.min(n, 40); return o })
   const toggle = (ad) => {
     if (ex[ad.id]) return setX(ad.id, 0)
@@ -105,9 +108,9 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const xkey = xq.trim().toLowerCase()
   const found = xkey ? SEARCH_ADDONS.filter((ad) => matchName(ad.n, xkey)) : null
   const tips = suggestAddons(food).map((id) => addonById[id]).filter(Boolean)
-  const extras = () => picked.map(([ad, n]) => ({ n: ad.n, a: shown(ad, n), w: gOn(ad) ? 'g' : ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n), na: Math.round(addonSodium(ad) * n) }))
-  const submit = () => onAdd(q, r2(a), u.word, [...extras(), ...cr.map((x) => ({ n: `หัก${x.name}ที่รวมในเมนูแล้ว`, a: x.g, w: 'g', cr: 1, k: -x.k, p: -x.p, c: -x.c, f: -x.f, na: -x.na }))])
-  const chip = (ad) => <button key={ad.id} type="button" className="xchip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}><span className="xn">{ad.n}</span><span className="xk2">{ad.gOnly ? `${r1(ad.k * 10)} kcal${addonSodium(ad) * 10 >= 50 ? ` · Na ${addonSodium(ad) * 10}` : ''} / 100 g` : `${ad.k} kcal${addonSodium(ad) >= 50 ? ` · Na ${addonSodium(ad)}` : ''} / ${ad.u}`}</span></button>
+  const extras = () => picked.map(([ad, n]) => ({ n: ad.n, a: shown(ad, n), w: gOn(ad) ? 'g' : ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n), na: Math.round(addonSodium(ad) * n), su: r1(addonSugar(ad) * n) }))
+  const submit = () => onAdd(q, r2(a), u.word, [...extras(), ...cr.map((x) => ({ n: `หัก${x.name}ที่รวมในเมนูแล้ว`, a: x.g, w: 'g', cr: 1, k: -x.k, p: -x.p, c: -x.c, f: -x.f, na: -x.na, su: -x.su }))])
+  const chip = (ad) => <button key={ad.id} type="button" className="xchip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}><span className="xn">{ad.n}</span><span className="xk2">{ad.gOnly ? `${r1(ad.k * 10)} kcal${addonSodium(ad) * 10 >= 50 ? ` · Na ${addonSodium(ad) * 10}` : ''}${addonSugar(ad) * 10 >= 5 ? ` · น้ำตาล ${r1(addonSugar(ad) * 10)}` : ''} / 100 g` : `${ad.k} kcal${addonSodium(ad) >= 50 ? ` · Na ${addonSodium(ad)}` : ''}${addonSugar(ad) >= 2 ? ` · น้ำตาล ${r1(addonSugar(ad))}` : ''} / ${ad.u}`}</span></button>
   return (
     <>
       <p className="mute sm">
@@ -175,7 +178,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
 
       <div className="qtot" aria-live="polite">
         <span><b className="num">{Math.round(food.k * q + sumX('k'))}</b> kcal{picked.length > 0 && <span className="mute xs"> (เครื่องปรุง {sumX('k') >= 0 ? '+' : '−'}{Math.abs(Math.round(sumX('k')))})</span>}</span>
-        <span className="mute xs">โปรตีน {r1(food.p * q + sumX('p'))} g · คาร์บ {r1(food.c * q + sumX('c'))} g · ไขมัน {r1(food.f * q + sumX('f'))} g · โซเดียม {Math.round(foodNa * q + sumNa).toLocaleString()} มก.</span>
+        <span className="mute xs">โปรตีน {r1(food.p * q + sumX('p'))} g · คาร์บ {r1(food.c * q + sumX('c'))} g · ไขมัน {r1(food.f * q + sumX('f'))} g · น้ำตาล {r1(foodSu * q + sumSu)} g · โซเดียม {Math.round(foodNa * q + sumNa).toLocaleString()} มก.</span>
       </div>
       <Seg label="มื้อ" value={slot} onChange={setSlot} options={SLOTS} />
       {onDelete && <button type="button" className="btn danger" onClick={onDelete}><X /> ลบรายการนี้</button>}
@@ -188,7 +191,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
 }
 
 /** แถวอาหารที่บันทึกแล้ว: แตะเพื่อแก้ไข (เฉพาะเมนูที่มีในฐานข้อมูล/เมนูของฉัน — "กรอกเอง" แบบไม่บันทึกแก้ไม่ได้ ลบแล้วเพิ่มใหม่) */
-function EatRow({ it, food, na, onEdit, onDelete }) {
+function EatRow({ it, food, na, su, onEdit, onDelete }) {
   const Row = food ? 'button' : 'div'
   const chip = isGWord(it.w) || it.q !== 1
   return (
@@ -196,7 +199,7 @@ function EatRow({ it, food, na, onEdit, onDelete }) {
       <Row className="eat-b" {...(food && { type: 'button', 'aria-label': `แก้ไข ${it.n}`, onClick: onEdit })}>
         <div className="grow">
           <div className="eat-n"><span>{it.n}</span>{food && <Pencil className="eat-pen" aria-hidden="true" />}{chip && <span className="qty">{it.w ? `${fmtAmt(it.a)} ${it.w}` : `×${it.q}`}</span>}</div>
-          <div className="mute xs">{it.q === 1 && !isGWord(it.w) && food?.u ? food.u + ' · ' : ''}P {it.p} · C {it.c ?? 0} · F {it.f ?? 0} · Na {na.toLocaleString()}</div>
+          <div className="mute xs">{it.q === 1 && !isGWord(it.w) && food?.u ? food.u + ' · ' : ''}P {it.p} · C {it.c ?? 0} · F {it.f ?? 0} · น้ำตาล {su} · Na {na.toLocaleString()}</div>
           {it.x?.length > 0 && <div className="eat-x2 xs">{it.x.some((x) => !x.cr) ? '+ ' : ''}{it.x.map((x) => (x.cr ? `${x.n} (−${Math.abs(x.k)} kcal)` : `${x.n} ${fmtAmt(x.a)} ${x.w}`)).join(' · ')}</div>}
         </div>
         <span className="num eat-k">{it.k.toLocaleString()}<small> kcal</small></span>
@@ -222,7 +225,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const closeSheet = () => { setSel(null); setEdit(null) }
   const [cat, setCat] = useState('recent')
   const [q, setQ] = useState('')
-  const blankCustom = { n: '', k: '', p: '', c: '', f: '', na: '', g: '', mode: 'all', save: false }
+  const blankCustom = { n: '', k: '', p: '', c: '', f: '', su: '', na: '', g: '', mode: 'all', save: false }
   const [custom, setCustom] = useState(blankCustom)
   const myFoods = useStore((s) => s.myFoods)
   const mine = useMemo(() => (myFoods || []).map((m) => ({ ...m, cat: 'mine' })), [myFoods])
@@ -247,7 +250,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   }
   const mk = (food, qty = 1, amt, word, extras = [], s = slot) => {
     const X = (k) => extras.reduce((n, x) => n + x[k], 0)
-    return { id: food.id, n: food.n, q: qty, s, k: Math.round(food.k * qty + X('k')), p: r1(food.p * qty + X('p')), c: r1(food.c * qty + X('c')), f: r1(food.f * qty + X('f')), na: Math.round(sodiumOf(food) * qty + X('na')), ...(word && { a: amt, w: word }), ...(extras.length && { x: extras }) }
+    return { id: food.id, n: food.n, q: qty, s, k: Math.round(food.k * qty + X('k')), p: r1(food.p * qty + X('p')), c: r1(food.c * qty + X('c')), f: r1(food.f * qty + X('f')), na: Math.round(sodiumOf(food) * qty + X('na')), su: r1(sugarOf(food) * qty + X('su')), ...(word && { a: amt, w: word }), ...(extras.length && { x: extras }) }
   }
   const label = (food, qty, amt, word, extras) => `${food.n}${word ? ` ${fmtAmt(amt)} ${word}` : qty !== 1 ? ` ×${qty}` : ''}${extras?.filter((x) => !x.cr).length ? ` + ${extras.filter((x) => !x.cr).length} เครื่องปรุง` : ''}`
   const add = (food, qty = 1, amt, word, extras = []) => {
@@ -276,7 +279,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
     setEdit({ i, s: it.s ?? 1, orig: JSON.stringify(it), init: { a: it.a ?? r2(it.q * u.base), w: it.w, x: it.x } })
   }
   const cv = (s) => Math.max(0, Number(s) || 0)
-  const cp = { k: cv(custom.k), p: cv(custom.p), c: cv(custom.c), f: cv(custom.f), na: cv(custom.na), m: custom.mode === '100' ? cv(custom.g) / 100 : 1 } // ค่าที่กรอก × ตัวคูณน้ำหนัก
+  const cp = { k: cv(custom.k), p: cv(custom.p), c: cv(custom.c), f: cv(custom.f), su: cv(custom.su), na: cv(custom.na), m: custom.mode === '100' ? cv(custom.g) / 100 : 1 } // ค่าที่กรอก × ตัวคูณน้ำหนัก
   const addCustom = () => {
     const per = custom.mode === '100'
     if (!cp.k || cp.k > (per ? 900 : 5000)) return toast?.(per ? 'ใส่พลังงานต่อ 100 g (kcal) 1–900' : 'ใส่พลังงาน (kcal) 1–5,000')
@@ -284,11 +287,11 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
     const name = custom.n.trim() || 'อาหารกำหนดเอง'
     if (custom.save && custom.n.trim()) {
       // เมนูของฉัน: เก็บค่าต่อ 100 g (หรือต่อ 1 หน่วย) แล้วบันทึกรายการจากเมนูนั้น → แก้ไข/ชั่งซ้ำภายหลังได้
-      const food = { id: 'my-' + Date.now().toString(36), n: name, u: per ? '100 g' : '1 หน่วย', k: r1(cp.k), p: r1(cp.p), c: r1(cp.c), f: r1(cp.f), na: Math.round(cp.na) }
+      const food = { id: 'my-' + Date.now().toString(36), n: name, u: per ? '100 g' : '1 หน่วย', k: r1(cp.k), p: r1(cp.p), c: r1(cp.c), f: r1(cp.f), su: r1(cp.su), na: Math.round(cp.na) }
       addMyFood(food)
       add({ ...food, cat: 'mine' }, per ? cp.m : 1, per ? r1(cp.m * 100) : 1, per ? 'g' : 'หน่วย')
     } else {
-      addFood(date, { id: 'custom', n: name, q: 1, s: slot, k: Math.round(cp.k * cp.m), p: r1(cp.p * cp.m), c: r1(cp.c * cp.m), f: r1(cp.f * cp.m), na: Math.round(cp.na * cp.m), ...(per && { a: r1(cp.m * 100), w: 'g' }) })
+      addFood(date, { id: 'custom', n: name, q: 1, s: slot, k: Math.round(cp.k * cp.m), p: r1(cp.p * cp.m), c: r1(cp.c * cp.m), f: r1(cp.f * cp.m), su: r1(cp.su * cp.m), na: Math.round(cp.na * cp.m), ...(per && { a: r1(cp.m * 100), w: 'g' }) })
       toast?.('เพิ่มอาหารแล้ว')
     }
     setCustom({ ...blankCustom, mode: custom.mode })
@@ -306,14 +309,15 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const extraK = Math.round((f.kcal || 0) - sumI('k'))
   const clearExtra = () => { patchFood(date, { kcal: sumI('k'), protein: r1(sumI('p')), carb: r1(sumI('c')), fat: r1(sumI('f')) }); toast?.('ล้างยอดที่ไม่มีรายการแล้ว') }
   const sodiumNow = items.reduce((n, it) => n + itemSodium(it, byId), 0)
+  const sugarNow = r1(items.reduce((n, it) => n + itemSugar(it, byId), 0))
   const remK = t.kcal - (f.kcal || 0), remP = proteinGoal - (f.protein || 0)
   const recent = useMemo(() => {
     const m = {}
     for (let i = 0; i < 4; i++) for (const it of logs[addDays(date, -i)]?.food?.items || []) if (m[it.id] == null) m[it.id] = i
     return m
   }, [logs, date])
-  const rem = { c: t.carb - (f.carb || 0), f: t.fat - (f.fat || 0), na: t.sodium - sodiumNow } // เหลือกินได้ (คาร์บ/ไขมัน g · โซเดียม มก.)
-  const sugg = useMemo(() => (isToday ? suggestFoods(remP, remK, { favs: foodFavs, recent, rem, seed: `${date}:${shuf}` }) : []), [isToday, Math.round(remP / 5), Math.round(remK / 50), Math.round(rem.c / 5), Math.round(rem.f / 3), Math.round(rem.na / 50), foodFavs, recent, date, shuf]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rem = { c: t.carb - (f.carb || 0), f: t.fat - (f.fat || 0), na: t.sodium - sodiumNow, su: t.sugar - sugarNow } // เหลือกินได้ (คาร์บ/ไขมัน g · โซเดียม มก.)
+  const sugg = useMemo(() => (isToday ? suggestFoods(remP, remK, { favs: foodFavs, recent, rem, seed: `${date}:${shuf}` }) : []), [isToday, Math.round(remP / 5), Math.round(remK / 50), Math.round(rem.c / 5), Math.round(rem.f / 3), Math.round(rem.na / 50), Math.round(rem.su / 3), foodFavs, recent, date, shuf]) // eslint-disable-line react-hooks/exhaustive-deps
   const h = new Date().getHours() + new Date().getMinutes() / 60
   const expected = wg * clamp((h - 7) / 14, 0, 1) // ควรดื่มทยอยตลอดวัน 07:00–21:00
   const pace = !isToday ? '' : water >= wg ? 'ดื่มครบเป้าแล้ว เก่งมาก' : expected - water >= 1
@@ -368,9 +372,10 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
           <Bar icon={Beef} label="โปรตีน" value={f.protein || 0} goal={proteinGoal} unit="g" />
           <Bar icon={Wheat} label="คาร์บ" value={f.carb || 0} goal={t.carb} unit="g" />
           <Bar icon={Droplet} label="ไขมัน" value={f.fat || 0} goal={t.fat} unit="g" over />
+          <Bar icon={Candy} label="น้ำตาลเติม" value={sugarNow} goal={t.sugar} unit="g" limit />
           <Bar icon={Soup} label="โซเดียม" value={sodiumNow} goal={t.sodium} unit="มก." limit />
           <p className="hint">เหลือ {remK > 0 ? `${Math.round(remK).toLocaleString()} kcal` : 'พลังงานเกินเป้าแล้ว'} · โปรตีนอีก {Math.max(0, Math.round(remP))} g · เป้าของคุณคำนวณจาก BMI อายุ และเป้าหมาย (ดูรายละเอียดที่หน้า “ฉัน”)</p>
-          <p className="hint">{sodiumNow >= t.sodium ? 'โซเดียมเกินเป้าแล้ว มื้อต่อไปลดน้ำซุป น้ำจิ้ม และเครื่องปรุง · ' : ''}โซเดียมเป็นค่าประมาณจากเมนู ไม่รวมเกลือหรือน้ำปลาที่เติมเองถ้าไม่ได้เพิ่มรายการ (เพิ่มได้ที่ “เพิ่มรายละเอียด”)</p>
+          <p className="hint">{sodiumNow >= t.sodium ? 'โซเดียมเกินเป้าแล้ว มื้อต่อไปลดน้ำซุป น้ำจิ้ม และเครื่องปรุง · ' : ''}{sugarNow >= t.sugar ? 'น้ำตาลเติมเกินเป้าแล้ว งดน้ำหวาน/ขนมหวานที่เหลือของวัน · ' : ''}น้ำตาลเติมนับเฉพาะน้ำตาล น้ำหวาน น้ำผลไม้ ซอสหวาน และขนม (ไม่นับน้ำตาลในผลไม้สด/นมจืด) · โซเดียมและน้ำตาลเป็นค่าประมาณจากเมนู ไม่รวมเกลือ น้ำปลา น้ำตาลที่เติมเองถ้าไม่ได้เพิ่มรายการ (เพิ่มได้ที่ “เพิ่มรายละเอียด”)</p>
         </section>
 
         {sugg.length > 0 && (
@@ -402,7 +407,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
                 <b>{x.n}</b>
                 <span className="mute xs">{x.u}</span>
                 <span className="xs"><b className="num">{x.k}</b> kcal · P {x.p}</span>
-                <span className="mute xs">โซเดียม {sodiumOf(x).toLocaleString()} มก.</span>
+                <span className="mute xs">น้ำตาล {sugarOf(x)} g · โซเดียม {sodiumOf(x).toLocaleString()} มก.</span>
               </button>
             ))}
             {!shown.length && <p className="mute sm">ไม่พบอาหาร ลองกรอกเองด้านล่าง</p>}
@@ -418,9 +423,10 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
                   <input key={k} className="input" type="number" inputMode="decimal" min="0" placeholder={label} aria-label={custom.mode === '100' ? `${label} ต่อ 100 กรัม` : label} value={custom[k]} onChange={(e) => setCustom({ ...custom, [k]: e.target.value })} />
                 ))}
               </div>
+              <input className="input" type="number" inputMode="decimal" min="0" placeholder="น้ำตาล (g) ถ้ารู้ เว้นว่างได้" aria-label={custom.mode === '100' ? 'น้ำตาล กรัม ต่อ 100 กรัม' : 'น้ำตาล กรัม'} value={custom.su} onChange={(e) => setCustom({ ...custom, su: e.target.value })} />
               <input className="input" type="number" inputMode="decimal" min="0" placeholder="โซเดียม (มก.) ถ้ารู้ เว้นว่างได้" aria-label={custom.mode === '100' ? 'โซเดียม มิลลิกรัม ต่อ 100 กรัม' : 'โซเดียม มิลลิกรัม'} value={custom.na} onChange={(e) => setCustom({ ...custom, na: e.target.value })} />
               {custom.mode === '100' && <input className="input" type="number" inputMode="decimal" min="0" placeholder="น้ำหนักที่ชั่ง (g)" aria-label="น้ำหนักที่ชั่ง กรัม" value={custom.g} onChange={(e) => setCustom({ ...custom, g: e.target.value })} />}
-              {cp.k > 0 && <p className="hint">รวมที่จะบันทึก: <b>{Math.round(cp.k * cp.m)}</b> kcal · โปรตีน {r1(cp.p * cp.m)} g · คาร์บ {r1(cp.c * cp.m)} g · ไขมัน {r1(cp.f * cp.m)} g{cp.na > 0 && ` · โซเดียม ${Math.round(cp.na * cp.m).toLocaleString()} มก.`}</p>}
+              {cp.k > 0 && <p className="hint">รวมที่จะบันทึก: <b>{Math.round(cp.k * cp.m)}</b> kcal · โปรตีน {r1(cp.p * cp.m)} g · คาร์บ {r1(cp.c * cp.m)} g · ไขมัน {r1(cp.f * cp.m)} g{cp.su > 0 && ` · น้ำตาล ${r1(cp.su * cp.m)} g`}{cp.na > 0 && ` · โซเดียม ${Math.round(cp.na * cp.m).toLocaleString()} มก.`}</p>}
               <label className="check"><input type="checkbox" checked={custom.save} onChange={(e) => setCustom({ ...custom, save: e.target.checked })} /> บันทึกเป็น “เมนูของฉัน” (ใช้ซ้ำได้ ชั่งเป็นกรัมได้เลย)</label>
               <button className="btn sm" onClick={addCustom}><Plus /> เพิ่ม</button>
             </div>
@@ -450,10 +456,10 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
                   <b>{name}</b>
                   <span className="mute xs"><b className="num meal-k">{Math.round(sum('k')).toLocaleString()}</b> kcal</span>
                 </div>
-                <div className="meal-m xs mute">โปรตีน {sum('p')} g · คาร์บ {sum('c')} g · ไขมัน {sum('f')} g · โซเดียม {rows.reduce((n, [it]) => n + itemSodium(it, byId), 0).toLocaleString()} มก.</div>
+                <div className="meal-m xs mute">โปรตีน {sum('p')} g · คาร์บ {sum('c')} g · ไขมัน {sum('f')} g · น้ำตาล {r1(rows.reduce((n, [it]) => n + itemSugar(it, byId), 0))} g · โซเดียม {rows.reduce((n, [it]) => n + itemSodium(it, byId), 0).toLocaleString()} มก.</div>
                 <ul className="meal-l">
                   {rows.map(([it, i]) => (
-                    <EatRow key={i} it={it} food={byId[it.id]} na={itemSodium(it, byId)} onEdit={() => openEdit(it, i)} onDelete={() => removeFood(date, i)} />
+                    <EatRow key={i} it={it} food={byId[it.id]} na={itemSodium(it, byId)} su={itemSugar(it, byId)} onEdit={() => openEdit(it, i)} onDelete={() => removeFood(date, i)} />
                   ))}
                 </ul>
               </div>

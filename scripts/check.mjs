@@ -773,3 +773,25 @@ console.log('ok — mood, memory, review')
   assert.equal(F('ก๋วยจั๊บญวน').id, 'noodle-ก๋วยจั๊บญวน'); for (const q of ['จั๊บญวน', 'ต้มเส้น', 'หลวงพระบาง']) assert.ok(FOODS.some((f) => matchName(f.n, q)), 'search ' + q)
   console.log('ok — isan round 2')
 }
+
+// น้ำตาลเติม (sugar.js)
+{
+  const { sugarOf, addonSugar, itemSugar } = await import('../src/data/sugar.js')
+  const { FOODS, ADDONS, foodById } = await import('../src/data/foods.js')
+  const { PANTRY } = await import('../src/data/pantry.js')
+  const F = (n) => FOODS.find((f) => f.n === n), A = (n) => ADDONS.find((a) => a.n === n)
+  for (const f of FOODS) { const s = sugarOf(f); assert.ok(Number.isFinite(s) && s >= 0 && s <= f.c + 0.05, `sugar ${f.n}: ${s} vs carb ${f.c}`) }
+  for (const a of ADDONS) assert.ok(addonSugar(a) >= 0 && addonSugar(a) <= a.c + 0.05, 'addon sugar ' + a.n)
+  assert.ok(PANTRY.every((r) => Number.isFinite(r.su) && r.su >= 0), 'pantry rows carry sugar')
+  assert.equal(sugarOf(F('ข้าวสวย')), 0); assert.equal(sugarOf(F('กล้วยหอม')), 0); assert.equal(sugarOf(F('นมจืด (ครบมันเนย)')), 0)
+  assert.equal(sugarOf(F('โค้กซีโร่')), 0); assert.ok(sugarOf(F('โค้ก/เป๊ปซี่ (ปกติ)')) >= 30, 'cola sugar')
+  assert.ok(sugarOf(F('ผัดไทยกุ้ง')) > sugarOf(F('ผัดกะเพราหมูสับ') || F('ข้าวสวย')), 'recipe sugar from ingredients')
+  assert.ok(Math.abs(addonSugar(A('น้ำตาลทราย')) - 4.2) < 0.01 && addonSugar(A('น้ำปลา')) === 0, 'add-on sugar')
+  const cola = F('โค้ก/เป๊ปซี่ (ปกติ)')
+  assert.equal(itemSugar({ id: cola.id, q: 2 }, foodById), sugarOf(cola) * 2, 'legacy item estimate')
+  assert.equal(itemSugar({ id: 'x', q: 1, su: 7 }, {}), 7, 'recorded su wins')
+  assert.equal(itemSugar({ id: 'gone', q: 1 }, {}), 0)
+  assert.equal(sugarOf({ id: 'my-1', n: 'ชาเย็น', c: 40, k: 100 }), 0, 'old my-food without su = 0, not guessed from name')
+  assert.equal(sugarOf({ n: 'x', c: 40, su: 9 }), 9, 'my food su wins')
+  console.log('ok — added sugar')
+}

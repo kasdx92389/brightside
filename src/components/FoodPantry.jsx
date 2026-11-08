@@ -17,18 +17,18 @@ const ingRow = (n) => pantryById[`ing-${n}`] || byName.get(n)
 
 /** รายละเอียดของรายการในคลัง: คุณค่าทางโภชนาการ · ค่าต่อ 100 g · เมนูที่ใช้ของนี้ / วัตถุดิบในเมนู · หัวใจ */
 function Detail({ x, on, onFav, onOpen }) {
-  const per100 = x.u === '100 g' || !x.gw ? null : { k: Math.round((x.k / x.gw) * 100), p: r1((x.p / x.gw) * 100), c: r1((x.c / x.gw) * 100), f: r1((x.f / x.gw) * 100), na: Math.round((x.na / x.gw) * 100) }
+  const per100 = x.u === '100 g' || !x.gw ? null : { k: Math.round((x.k / x.gw) * 100), p: r1((x.p / x.gw) * 100), c: r1((x.c / x.gw) * 100), f: r1((x.f / x.gw) * 100), na: Math.round((x.na / x.gw) * 100), su: r1((x.su / x.gw) * 100) }
   const used = useMemo(() => (x.kind === 'dish' ? [] : DISHES.filter((d) => d.id !== x.id && usesIngredient({ n: d.n, ing: d.ing }, x.n)).sort((a, b) => b.p - a.p).slice(0, 12)), [x])
   const ings = (x.ing || []).map((n) => [n, ingRow(n)])
   return (
     <div className="col">
       <p className="mute sm">{LABEL[x.kind]} · {x.u}{x.gw && x.u !== '100 g' ? ` (≈ ${x.gw} g)` : ''}</p>
       <div className="nstats" role="group" aria-label="คุณค่าทางโภชนาการ">
-        {[['พลังงาน', x.k, 'kcal'], ['โซเดียม', x.na.toLocaleString(), 'มก.'], ['โปรตีน', x.p, 'g'], ['คาร์บ', x.c, 'g'], ['ไขมัน', x.f, 'g']].map(([l, v, u]) => (
+        {[['พลังงาน', x.k, 'kcal'], ['น้ำตาลเติม', x.su, 'g'], ['โซเดียม', x.na.toLocaleString(), 'มก.'], ['โปรตีน', x.p, 'g'], ['คาร์บ', x.c, 'g'], ['ไขมัน', x.f, 'g']].map(([l, v, u]) => (
           <div key={l}><span className="mute xs">{l}</span><b className="num">{v}</b><span className="mute xs">{u}</span></div>
         ))}
       </div>
-      {per100 && <p className="hint">ต่อ 100 g ≈ {per100.k} kcal · P {per100.p} · C {per100.c} · F {per100.f} · Na {per100.na.toLocaleString()} มก. (ค่าประมาณ)</p>}
+      {per100 && <p className="hint">ต่อ 100 g ≈ {per100.k} kcal · P {per100.p} · C {per100.c} · F {per100.f} · น้ำตาล {per100.su} · Na {per100.na.toLocaleString()} มก. (ค่าประมาณ)</p>}
       <button type="button" className="btn" aria-pressed={on} onClick={onFav} style={on ? { borderColor: 'var(--pri)', background: 'var(--pri-soft)' } : undefined}>
         <Heart fill={on ? 'currentColor' : 'none'} /> {on ? 'อยู่ในรายการโปรดแล้ว (กดเพื่อเอาออก)' : 'กดหัวใจ เพื่อให้แนะนำบ่อยขึ้น'}
       </button>
@@ -88,7 +88,7 @@ export default function FoodPantry() {
                   <button type="button" className="pitem-b grow" aria-label={`ดูรายละเอียด ${x.n}`} onClick={() => setSel(x)}>
                     <b>{x.n}</b>
                     <div className="mute xs">{label[x.kind]} · {x.u}</div>
-                    <div className="xs"><b className="num">{x.k}</b> kcal · P {x.p} · C {x.c} · F {x.f} · Na {x.na.toLocaleString()}</div>
+                    <div className="xs"><b className="num">{x.k}</b> kcal · P {x.p} · C {x.c} · F {x.f} · น้ำตาล {x.su} · Na {x.na.toLocaleString()}</div>
                   </button>
                   <button className="fav pfav" aria-pressed={on} aria-label={`${on ? 'เลิกกดโปรด' : 'กดโปรด'} ${x.n}`} onClick={() => toggleFoodFav(x.id)}><Heart fill={on ? 'currentColor' : 'none'} /></button>
                 </li>

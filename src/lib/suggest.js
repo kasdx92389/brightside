@@ -2,6 +2,7 @@
 // เครื่องปรุง/วัตถุดิบที่กดหัวใจ = แนะนำ "เมนูที่ใช้ของนั้น" ไม่แนะนำให้กินเครื่องปรุงเดี่ยวๆ
 import { FOODS, addonById } from '../data/foods.js'
 import { sodiumOf } from '../data/sodium.js'
+import { sugarOf } from '../data/sugar.js'
 
 const MAIN = new Set(['meat', 'dish', 'dairy', 'plant', 'meal', 'noodle', 'world', 'rice'])
 const STARCH = new Set(['rice', 'noodle']) // แป้งล้วนต้องมีโปรตีนจริงจังถึงจะแนะนำ
@@ -37,16 +38,16 @@ export function seeded(seed) {
 /**
  * @param remP โปรตีนที่ยังขาด (g) · @param remK พลังงานที่เหลือ (kcal)
  * @param o.favs id ที่กดหัวใจ · o.seed ตัวสุ่ม · o.recent { id: กี่วันที่แล้วที่กิน (0 = วันนี้) } · o.n จำนวนที่ต้องการ
- * @param o.rem { c, f, na } คาร์บ/ไขมัน (g) และโซเดียม (มก.) ที่ยังเหลือกินได้ — เมนูที่ทำให้เกินเป้าไม่ถูกแนะนำ (เกินได้เล็กน้อย: คาร์บ 5 g ไขมัน 3 g)
+ * @param o.rem { c, f, na, su } คาร์บ/ไขมัน/น้ำตาลเติม (g) และโซเดียม (มก.) ที่ยังเหลือกินได้ — เมนูที่ทำให้เกินเป้าไม่ถูกแนะนำ (เกินได้เล็กน้อย: คาร์บ 5 g ไขมัน 3 g)
  */
 export function suggestFoods(remP, remK, o = {}) {
   if (remP < 10) return []
   const { favs = [], seed = '', recent = {}, n = 3, rem } = o
   const left = (v) => (v == null ? Infinity : Math.max(0, v))
-  const remC = left(rem?.c), remF = left(rem?.f), remNa = left(rem?.na)
+  const remC = left(rem?.c), remF = left(rem?.f), remNa = left(rem?.na), remSu = left(rem?.su)
   const favSet = new Set(favs)
   const ings = favIngredientNames(favs)
-  const pool = FOODS.filter((f) => MAIN.has(f.cat) && !SKIP.test(f.n) && f.p >= (STARCH.has(f.cat) ? 12 : 8) && f.p <= remP + 10 && f.k <= Math.max(150, remK) && f.c <= remC + 5 && f.f <= remF + 3 && sodiumOf(f) <= remNa)
+  const pool = FOODS.filter((f) => MAIN.has(f.cat) && !SKIP.test(f.n) && f.p >= (STARCH.has(f.cat) ? 12 : 8) && f.p <= remP + 10 && f.k <= Math.max(150, remK) && f.c <= remC + 5 && f.f <= remF + 3 && sodiumOf(f) <= remNa && sugarOf(f) <= remSu)
   const scored = pool.map((f) => {
     const hit = ings.find((g) => usesIngredient(f, g))
     const ago = recent[f.id]

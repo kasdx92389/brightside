@@ -466,7 +466,7 @@ const fresh = new Map()
 // เมนูที่เปลี่ยนชื่อแล้ว: คง id เดิมไว้ให้รายการที่เคยบันทึกยังเปิดแก้ได้
 const LEGACY_ID = { 'ข้าวญี่ปุ่น': 'rice-ข้าวญี่ปุ่นสุก' }
 for (const r of RECIPES) {
-  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, gw: r.gw, ing: r.ings, amt: r.amt, ...(r.isan && { isan: 1 }) }
+  const nut = { k: r.k, p: r.p, c: r.c, f: r.f, na: r.na, su: r.su, gw: r.gw, ing: r.ings, amt: r.amt, ...(r.isan && { isan: 1 }) }
   const ex = byName.get(r.n)
   if (ex) Object.assign(ex, nut)
   else fresh.set(r.n, { id: LEGACY_ID[r.n] || `${r.cat}-${r.n}`, cat: r.cat, n: r.n, u: r.u, ...nut })

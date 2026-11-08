@@ -1,8 +1,9 @@
 // คลังอาหาร: ทุกอย่างที่แอปรู้จักในที่เดียว — เมนู ผัก ผลไม้ วัตถุดิบ เครื่องปรุง · ค้นหาดูคุณค่าทางโภชนาการได้ และกดหัวใจได้
 // kind: dish เมนู · veg ผัก · fruit ผลไม้ · ing วัตถุดิบหลัก (เนื้อ ไข่ แป้ง ถั่ว) · cond เครื่องปรุง/น้ำมัน
 import { FOODS, ADDONS } from './foods.js'
-import { INGREDIENTS } from './recipes.js'
+import { INGREDIENTS, ingSugar } from './recipes.js'
 import { sodiumOf, addonSodium } from './sodium.js'
+import { sugarOf, addonSugar } from './sugar.js'
 import { gramsPerUnit, addonGw } from './grams.js'
 
 export const PANTRY_KINDS = [['dish', 'เมนู'], ['veg', 'ผัก'], ['fruit', 'ผลไม้'], ['ing', 'วัตถุดิบ'], ['cond', 'เครื่องปรุง']]
@@ -23,12 +24,12 @@ const kindOfFood = (f) => {
 export const kindOfIng = (n) => (COND.test(n) ? 'cond' : FRUIT.test(n) ? 'fruit' : VEG.test(n) ? 'veg' : 'ing')
 
 const rows = []
-for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f), ...(f.ing && { ing: f.ing }), ...(f.amt && { amt: f.amt }), ...(f.isan && { isan: 1 }), ...(gramsPerUnit(f) && { gw: gramsPerUnit(f) }) })
+for (const f of FOODS) rows.push({ id: f.id, kind: kindOfFood(f), n: f.n, u: f.u, k: f.k, p: f.p, c: f.c, f: f.f, na: sodiumOf(f), su: sugarOf(f), ...(f.ing && { ing: f.ing }), ...(f.amt && { amt: f.amt }), ...(f.isan && { isan: 1 }), ...(gramsPerUnit(f) && { gw: gramsPerUnit(f) }) })
 const addonNames = new Set(ADDONS.map((a) => a.n))
-for (const a of ADDONS) rows.push({ id: `ad:${a.id}`, kind: a.cat === 'meat' || a.cat === 'extra' ? 'ing' : 'cond', n: a.n, u: `1 ${a.u}`, k: a.k, p: a.p, c: a.c, f: a.f, na: addonSodium(a), ...(addonGw(a) && { gw: addonGw(a) }) })
+for (const a of ADDONS) rows.push({ id: `ad:${a.id}`, kind: a.cat === 'meat' || a.cat === 'extra' ? 'ing' : 'cond', n: a.n, u: `1 ${a.u}`, k: a.k, p: a.p, c: a.c, f: a.f, na: addonSodium(a), su: addonSugar(a), ...(addonGw(a) && { gw: addonGw(a) }) })
 for (const [n, [k, p, c, f, na]] of Object.entries(INGREDIENTS)) {
   if (addonNames.has(n)) continue // เครื่องปรุงที่มีหน่วยช้อนอยู่แล้ว ใช้แถวนั้นแทน
-  rows.push({ id: `ing-${n}`, kind: kindOfIng(n), n, u: '100 g', k, p: r1(p), c: r1(c), f: r1(f), na })
+  rows.push({ id: `ing-${n}`, kind: kindOfIng(n), n, u: '100 g', k, p: r1(p), c: r1(c), f: r1(f), na, su: ingSugar(n) })
 }
 export const PANTRY = rows
 export const pantryById = Object.fromEntries(rows.map((r) => [r.id, r]))
@@ -37,6 +38,6 @@ export const pantryById = Object.fromEntries(rows.map((r) => [r.id, r]))
  *  หน่วยภายใน = 10 g (gw 10) · gOnly = แสดง/บันทึกเป็นกรัมเสมอ · def = ปริมาณตั้งต้น (หน่วย 10 g → 50 g) */
 const r2 = (v) => Math.round(v * 100) / 100
 export const INGREDIENT_ADDONS = Object.entries(INGREDIENTS).filter(([n]) => !addonNames.has(n)).map(([n, [k, p, c, f, na]]) => (
-  { id: `ing-${n}`, cat: 'ing', n, u: '10 g', gw: 10, gOnly: true, gStep: 10, def: 5, k: r2(k / 10), p: r2(p / 10), c: r2(c / 10), f: r2(f / 10), na: Math.round(na / 10) }
+  { id: `ing-${n}`, cat: 'ing', n, u: '10 g', gw: 10, gOnly: true, gStep: 10, def: 5, k: r2(k / 10), p: r2(p / 10), c: r2(c / 10), f: r2(f / 10), na: Math.round(na / 10), su: r2(ingSugar(n) / 10) }
 ))
 export const ingAddonById = Object.fromEntries(INGREDIENT_ADDONS.map((a) => [a.id, a]))
