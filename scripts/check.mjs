@@ -663,7 +663,7 @@ console.log('ok — mood, memory, review')
   assert.equal(GRAPES.length, 3)
   const mg = by('มะม่วงเขย่าพริกเกลือ 7-Eleven (Oh! Fruity)')
   assert.ok(mg && mg.cat === 'plant' && mg.gw === 154 && mg.sg === 17 && mg.su === 4, 'มะม่วงเขย่า 7-Eleven')
-  const baam = by('เวย์ไอโซเลท BAAM ISO Absolute Zero รสดาร์กช็อกโกแลต')
+  const baam = by('เวย์ไอโซเลท BAAM ISO ดาร์กช็อกโกแลต')
   assert.ok(baam && baam.cat === 'dairy' && baam.gw === 35 && baam.p === 30 && baam.sg === 0 && by('เวย์ไอโซเลท').k === 110, 'เวย์ BAAM + เวย์เดิมไม่เปลี่ยน')
   for (const x of GRAPES) { const f = by(x.n); assert.ok(f && f.cat === 'plant' && f.gw === x.gw); assert.ok(Math.abs(f.k / f.gw * 100 - 69) < 0.7, 'kcal/100g ' + x.n + ' ' + (f.k / f.gw * 100)) }
   assert.ok(by('องุ่นไชน์มัสคัต ผลกลาง').k * 12 > 98 && by('องุ่นไชน์มัสคัต ผลกลาง').k * 12 < 101, '12 ลูกกลาง ≈ 1 ถาด 150 g ≈ 103 kcal')
