@@ -25,7 +25,7 @@ export function sanitizeProfile(p) {
   out.screen = Array.isArray(p.screen) ? [...new Set(p.screen.filter((k) => SCREEN.some(([id]) => id === k)))] : []
   out.preg = pick(p.preg, ['none', '1', '2', '3', 'pp'], 'none')
   if (out.sex !== 'f') out.preg = 'none'
-  for (const [k, lo, hi] of [['kcalAdj', -300, 300], ['loadAdj', 0.5, 1.5]]) { const v = num(p[k], lo, hi); if (v === null) delete out[k]; else out[k] = v }
+  for (const [k, lo, hi] of [['kcalAdj', -300, 300], ['loadAdj', 0.5, 1.5], ['bottleMl', 50, 3000]]) { const v = num(p[k], lo, hi); if (v === null) delete out[k]; else out[k] = v }
   if (!DATE.test(out.kcalAdjAt || '')) delete out.kcalAdjAt
   return out
 }

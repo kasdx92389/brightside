@@ -12,7 +12,7 @@ import { INGREDIENT_ADDONS, ingAddonById } from '../data/pantry.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { suggestFoods } from '../lib/suggest.js'
 import { credits } from '../lib/credit.js'
-import { addWater, removeWaterEntry, setWaterTotal, patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
+import { addWater, setBottle, removeWaterEntry, setWaterTotal, patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
 
 const ML = 250 // 1 แก้ว
 const SLOTS = MEAL_SLOTS.map(([n], i) => [i, n])
@@ -302,6 +302,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
   const wlog = f.waterLog || []
   const lastW = wlog[wlog.length - 1]
   const waterNow = Math.round(water * ML), waterGoalMl = wg * ML
+  const [bIn, setBIn] = useState('') // ขนาดขวดของฉัน (มล.)
   const [wOther, setWOther] = useState('') // ปริมาณอื่น (มล.) · เพิ่ม/ลดได้
   const [wTotal, setWTotal] = useState('') // แก้ยอดรวมของวันเป็นค่านี้
   const timeOf = (t) => (t > 0 ? new Date(t).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '')
@@ -340,6 +341,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
             {lastW
               ? <button className="btn sm" aria-label={`ย้อนรายการล่าสุด ${lastW.ml > 0 ? '+' : ''}${lastW.ml} มล.`} title={`ย้อนรายการล่าสุด ${lastW.ml > 0 ? '+' : ''}${lastW.ml} มล.`} onClick={() => removeWaterEntry(date, wlog.length - 1)}><Undo2 /></button>
               : <button className="btn sm" aria-label="ลดน้ำ 250 มล." onClick={() => drink(-ML)}><Minus /></button>}
+            {profile.bottleMl > 0 && <button className="btn sm pri" onClick={() => drink(profile.bottleMl)}><Plus /> ขวดฉัน {profile.bottleMl}</button>}
             {[250, 500, 600].map((ml) => <button key={ml} className="btn sm" onClick={() => drink(ml)}><Plus /> {ml}</button>)}
           </div>
           <details className="wmore">
@@ -347,6 +349,11 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
             <div className="col" style={{ gap: '0.625rem', marginTop: '0.5rem' }}>
               <div className="wpre" role="group" aria-label="ปริมาณที่เจอบ่อย">
                 {[100, 150, 330, 750, 1000, 1500].map((ml) => <button key={ml} type="button" className="btn sm" onClick={() => drink(ml)}><Plus /> {ml.toLocaleString()}</button>)}
+              </div>
+              <div className="wrow">
+                <input className="input winput" type="number" inputMode="numeric" min="50" max="3000" placeholder={profile.bottleMl ? `ขวดของฉัน ${profile.bottleMl} มล. (เปลี่ยนได้)` : 'ขนาดขวดของฉัน (มล.) ตวงจริง'} aria-label="ขนาดขวดน้ำของฉัน (มล.)" value={bIn} onChange={(e) => setBIn(e.target.value)} />
+                <button type="button" className="btn sm" disabled={!(Number(bIn) >= 50)} onClick={() => { setBottle(Number(bIn)); setBIn(''); toast?.('บันทึกขนาดขวดแล้ว') }}>ตั้งขวด</button>
+                {profile.bottleMl > 0 && <button type="button" className="btn sm" onClick={() => setBottle(0)}>ลบ</button>}
               </div>
               <div className="wrow">
                 <input className="input winput" type="number" inputMode="numeric" min="1" max="5000" placeholder="กรอกเอง (มล.)" aria-label="ปริมาณน้ำที่กรอกเอง (มล.)" value={wOther} onChange={(e) => setWOther(e.target.value)} />

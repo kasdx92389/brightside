@@ -750,6 +750,9 @@ console.log('ok — mood, memory, review')
   const clean = sanitizeState({ ...getState(), logs: { [d]: { sets: {}, food: { water: 1, waterLog: [{ ml: 250, t: 1 }, { ml: 'x' }, null, { ml: 999999 }] } } } }, '2026-10-02')
   assert.deepEqual(clean.logs[d].food.waterLog, [{ ml: 250, t: 1 }], 'sanitize เก็บเฉพาะรายการที่ถูกต้อง')
   for (let i = 0; i < 70; i++) addWater(d, 100); assert.ok(W().waterLog.length <= 60, 'ประวัติจำกัด 60 รายการ')
+  const pb = { name: 'a', sex: 'm', age: 30, weight: 70, height: 170 }
+  assert.equal(sanitizeProfile({ ...pb, bottleMl: 700 }).bottleMl, 700, 'ขวดของฉันเก็บได้')
+  assert.ok(!('bottleMl' in sanitizeProfile({ ...pb, bottleMl: 99999 })) && !('bottleMl' in sanitizeProfile({ ...pb, bottleMl: 'x' })), 'ขวดผิดปกติถูกตัดทิ้ง')
   console.log('ok — water log (add/undo/remove/set total)')
 }
 { // อาหารอีสาน: ครบหมวดที่ขอ · ค่าสมเหตุสมผล · ค้นหาเจอ · เมนูเดิมไม่เปลี่ยน id/หน่วย

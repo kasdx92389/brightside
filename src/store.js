@@ -50,6 +50,9 @@ export const setLoadAdj = (v) => update((s) => ({ ...s, profile: { ...s.profile,
 // ปรับเป้าแคลอรี่ตามน้ำหนักที่เปลี่ยนจริง (±300 kcal สะสม ปัดทีละ 50) · kcalAdjAt = วันที่ปรับ ใช้ให้รอ 2 สัปดาห์ก่อนประเมินใหม่
 export const setKcalAdj = (v) => update((s) => ({ ...s, profile: { ...s.profile, kcalAdj: Math.max(-300, Math.min(300, Math.round(v / 50) * 50)), kcalAdjAt: dateKey() } }))
 
+// ขนาดขวดน้ำของผู้ใช้ (มล.) ตวงจริงครั้งเดียว แล้วกดปุ่มเดียวต่อขวด · 0/ว่าง = ลบ
+export const setBottle = (ml) => update((s) => { const { bottleMl, ...p } = s.profile; return { ...s, profile: ml >= 50 ? { ...p, bottleMl: Math.min(3000, Math.round(ml)) } : p } })
+
 // แทนท่าที่ไม่เหมาะกับอายุ/คัดกรอง/ตั้งครรภ์/BMI ด้วยท่าปลอดภัยในกลุ่มเดียวกัน (ส่วนอื่นของแผนไม่เปลี่ยน)
 export const fixPlanSafety = () => update((s) => (s.plan && s.profile ? { ...s, plan: { ...fixPlan(s.plan, s.profile), source: 'custom' } } : s))
 
