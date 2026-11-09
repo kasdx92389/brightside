@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { CalendarCheck, ClipboardList, LibraryBig, TrendingUp, UserRound, Plus, X } from 'lucide-react'
 import { useStore, saveFailed } from './store.js'
+import { dateKey } from './lib/calc.js'
 import Onboarding from './pages/Onboarding.jsx'
 import Today from './pages/Today.jsx'
 import Plan from './pages/Plan.jsx'
@@ -56,6 +57,14 @@ export default function App() {
   const stopRest = useCallback(() => setRest(null), [])
   useEffect(() => { if (!param || page === 'memory') scrollTo(0, 0) }, [page, param])
   useEffect(startSync, [])
+  // เปิดแอปค้างข้ามเที่ยงคืน → วันเปลี่ยน ต้องรีเฟรชหน้า (วันนี้/วันพัก/สตรีค) ไม่ให้ค้างวันเดิม
+  const [today, setToday] = useState(dateKey)
+  useEffect(() => {
+    const tick = () => setToday(dateKey())
+    const id = setInterval(tick, 30000)
+    document.addEventListener('visibilitychange', tick)
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick) }
+  }, [])
   // ลิงก์เชื่อมเครื่อง #/sync/รหัส: ถามยืนยันก่อน (ใช้ได้แม้เครื่องนี้ยังไม่มีโปรไฟล์)
   const join = page === 'sync' ? <JoinSync key={param} secret={param || ''} toast={toast} onDone={() => { location.hash = '#/today' }} /> : null
 
@@ -80,7 +89,7 @@ export default function App() {
         ))}
       </nav>
       {saveFailed && <div className="warnbar" role="alert">บันทึกลงเครื่องไม่ได้ (พื้นที่เต็มหรือโหมดส่วนตัว) ข้อมูลจะหายเมื่อปิดหน้านี้ — ไปหน้า “ฉัน” แล้วกด “สำรอง”</div>}
-      <main>{view}</main>
+      <main key={today}>{view}</main>
       {join}
       {page === 'import' && <ImportSheet key={param} code={param || ''} onClose={() => { location.hash = '#/plan' }} toast={toast} />}
       {rest && <RestTimer end={rest.end} label={rest.label} onAdd={(s) => setRest((r) => ({ ...r, end: r.end + s * 1000 }))} onStop={stopRest} />}

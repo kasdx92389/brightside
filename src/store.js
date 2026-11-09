@@ -97,7 +97,13 @@ export const setMood = (date, patch) => {
 
 export const finishDay = (date, finished = true) =>
   patchLog(date, (log) => ({ ...log, finished, skipped: false, finishedAt: finished ? Date.now() : undefined }))
-export const skipDay = (date, skipped = true) => patchLog(date, (log) => ({ ...log, skipped, finished: false }))
+// แก้เวลาเริ่มฝึก (hhmm = 'HH:MM' เวลาท้องถิ่น) ต้องไม่เลยเวลาจบ
+export const setStartTime = (date, hhmm) =>
+  patchLog(date, (log) => {
+    const t = new Date(`${date}T${hhmm}:00`).getTime()
+    return Number.isFinite(t) && (!log.finishedAt || t <= log.finishedAt) ? { ...log, startedAt: t } : log
+  })
+export const skipDay =(date, skipped = true) => patchLog(date, (log) => ({ ...log, skipped, finished: false }))
 export const toggleWarm = (date) => patchLog(date, (log) => ({ ...log, warm: !log.warm }))
 export const patchFood = (date, patch) =>
   patchLog(date, (log) => {

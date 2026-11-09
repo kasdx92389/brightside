@@ -13,7 +13,7 @@ import { isTimed, timedSeconds, overloadHint, regressHint, deloadDue, inDeload }
 import { suggestKg, personalFactor, LOAD_UNIT } from '../lib/loads.js'
 import { bmi as calcBmi } from '../lib/calc.js'
 import {
-  useStore, editDay, setLoadAdj, patchSet, finishDay, skipDay, toggleWarm, startDeload, endDeload,
+  useStore, editDay, setLoadAdj, patchSet, finishDay, skipDay, setStartTime, toggleWarm, startDeload, endDeload,
   setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak,
 } from '../store.js'
 
@@ -159,7 +159,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           const k = dateKey(x)
           const st = dayStatus(s, k)
           return (
-            <a key={k} href={`#/today/${k}`} className={st} aria-current={k === date ? 'date' : undefined} aria-label={`${DAY_TH[i]} ${STATUS_TH[st]}`}>
+            <a key={k} href={`#/today/${k}`} className={st === 'rest' && k < dateKey() ? 'rest past' : st} aria-current={k === date ? 'date' : undefined} aria-label={`${DAY_TH[i]} ${STATUS_TH[st]}`}>
               {DAY_SHORT[i]}
               <i>{st === 'done' && <Check />}{st === 'skip' && <Moon />}{st === 'rest' && k <= dateKey() && <BedDouble />}</i>
             </a>
@@ -240,6 +240,11 @@ export default function Today({ date: dateParam, startTimer, toast }) {
           <p className="mute">สรุปวันนี้: <b className="num tone-good" style={{ fontSize: '1.25rem' }}>{setsDone(log)}</b> เซ็ต
             {volumeOf(log) > 0 && <> · ปริมาณรวม <b className="num tone-good" style={{ fontSize: '1.25rem' }}>{volumeOf(log).toLocaleString()}</b> กก.</>}
             {log.startedAt && log.finishedAt && <> · ใช้เวลา <b className="num tone-good" style={{ fontSize: '1.25rem' }}>{mins(log.startedAt, log.finishedAt)}</b> นาที</>}</p>
+          {log.startedAt && (
+            <label className="row sm mute" style={{ gap: '0.5rem' }}>เริ่มฝึกเมื่อ
+              <input type="time" value={new Date(log.startedAt).toTimeString().slice(0, 5)} onChange={(e) => e.target.value && setStartTime(date, e.target.value)} />
+            </label>
+          )}
           <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={() => finishDay(date, false)}><Undo2 /> ยกเลิกการจบ</button>
         </section>
       ) : (
