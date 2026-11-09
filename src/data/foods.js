@@ -475,6 +475,12 @@ for (const r of RECIPES) {
 for (const b of BREADS) if (!byName.has(b.n) && !fresh.has(b.n)) fresh.set(b.n, { id: `${b.cat}-${b.n}`, cat: b.cat, n: b.n, u: b.u, k: b.k, p: b.p, c: b.c, f: b.f, na: b.na, gw: b.gw })
 for (const x of FRUITS) if (!byName.has(x.n) && !fresh.has(x.n)) fresh.set(x.n, { id: `${x.cat}-${x.n}`, cat: x.cat, n: x.n, u: x.u, k: x.k, p: x.p, c: x.c, f: x.f, na: x.na, gw: x.gw, ...(x.sg != null && { sg: x.sg, su: x.su }) })
 for (const m of MILKS) if (!byName.has(m.n) && !fresh.has(m.n)) fresh.set(m.n, { id: `${m.cat}-${m.n}`, cat: m.cat, n: m.n, u: m.u, k: m.k, p: m.p, c: m.c, f: m.f, na: m.na, gw: m.gw, ...(m.sg != null && { sg: m.sg }) })
+// เวย์ไอโซเลท BAAM ISO Absolute Zero รสดาร์กช็อกโกแลต [GZ] — 1 สกู๊ป ~35 g ตามที่ร้านระบุ (โปรตีน 30 g)
+// หาฉลากรสนี้ไม่เจอ: 130 kcal/คาร์บ 0 g/ไขมัน 0 g เป็นของรสวานิลลา (รสนี้มีโกโก้ จึงประมาณ C1 F1) · โซเดียมใช้ค่าเวย์ไอโซเลททั่วไป · ถ้าได้ฉลากจริงให้แทนค่านี้
+{
+  const n = 'เวย์ไอโซเลท BAAM ISO Absolute Zero รสดาร์กช็อกโกแลต'
+  if (!byName.has(n)) fresh.set(n, { id: `dairy-${n}`, cat: 'dairy', n, u: '1 สกู๊ป (35 g)', k: 130, p: 30, c: 1, f: 1, na: 90, gw: 35, sg: 0, su: 0 })
+}
 export const FOODS = [...BASE_ALL, ...fresh.values()]
 // หมวด "กับข้าว" มีหลายร้อยเมนู → แบ่งกลุ่มย่อยตามวิธีปรุง (ใช้เป็นตัวกรองในหน้าเลือกอาหาร; id/หมวดเดิมไม่เปลี่ยน)
 const dishGroup = (n) => (/น้ำพริก|แจ่วบอง|แจ่วมะขาม|ปลาร้าทรงเครื่อง/.test(n) ? 'dish-dip' : /ยำ|ตำ|ลาบ|น้ำตก|พล่า|ก้อย|ซอยจุ๊/.test(n) ? 'dish-salad' : /แกง|ต้ม|ซุป|อ่อม/.test(n) ? 'dish-soup' : /ผัด|ฉ่า/.test(n) ? 'dish-stir' : 'dish-fry')
