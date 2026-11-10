@@ -451,7 +451,7 @@ details.day[open] > summary .chev { rotate: 180deg; }
 .bar i { display: block; height: 100%; border-radius: 5px; background: var(--pri); transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .bar i.full { background: var(--ok); }
 .bar i.over { background: var(--warn); }
-.drinks { display: grid; grid-template-columns: 52px repeat(3, minmax(0, 1fr)); gap: 6px; }
+.drinks { display: grid; grid-template-columns: 52px; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; } /* ปุ่มแรก (ย้อน) 52px ที่เหลือแบ่งเท่ากัน ไม่ว่ามีปุ่มขวดฉันหรือไม่ — ไม่ตกแถว */
 .drinks .btn.sm { padding: 0 0.25rem; gap: 2px; min-width: 0; }
 .drinks .btn svg { width: 16px; height: 16px; }
 .sugg-box { flex-direction: column; gap: 0.5rem; }

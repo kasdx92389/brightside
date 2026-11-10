@@ -341,7 +341,7 @@ export default function FoodTracker({ date, log, logs, profile, train, isToday, 
             {lastW
               ? <button className="btn sm" aria-label={`ย้อนรายการล่าสุด ${lastW.ml > 0 ? '+' : ''}${lastW.ml} มล.`} title={`ย้อนรายการล่าสุด ${lastW.ml > 0 ? '+' : ''}${lastW.ml} มล.`} onClick={() => removeWaterEntry(date, wlog.length - 1)}><Undo2 /></button>
               : <button className="btn sm" aria-label="ลดน้ำ 250 มล." onClick={() => drink(-ML)}><Minus /></button>}
-            {profile.bottleMl > 0 && <button className="btn sm pri" onClick={() => drink(profile.bottleMl)}><Plus /> ขวดฉัน {profile.bottleMl}</button>}
+            {profile.bottleMl > 0 && <button className="btn sm pri" aria-label={`ขวดฉัน ${profile.bottleMl} มล.`} onClick={() => drink(profile.bottleMl)}><Plus /> {profile.bottleMl}</button>}
             {[250, 500, 600].map((ml) => <button key={ml} className="btn sm" onClick={() => drink(ml)}><Plus /> {ml}</button>)}
           </div>
           <details className="wmore">
