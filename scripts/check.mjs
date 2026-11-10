@@ -665,7 +665,7 @@ console.log('ok — mood, memory, review')
   assert.ok(mg && mg.cat === 'plant' && mg.gw === 154 && mg.sg === 17 && mg.su === 4, 'มะม่วงเขย่า 7-Eleven')
   const baam = by('เวย์ไอโซเลท BAAM ISO ดาร์กช็อกโกแลต')
   assert.ok(baam && baam.cat === 'dairy' && baam.gw === 35 && baam.p === 30 && baam.sg === 0 && by('เวย์ไอโซเลท').k === 110, 'เวย์ BAAM + เวย์เดิมไม่เปลี่ยน')
-  for (const [n, k, p] of [['อกไก่นุ่ม CP Delight กะเพรา', 90, 18], ['อกไก่นุ่ม CP Delight กระเทียมพริกไทย', 90, 17], ['อกไก่นุ่ม CP Delight ต้นตำรับ', 90, 18], ['ทูน่าสเต็ก Sealect ในน้ำแร่', 120, 30]]) { const f = by(n); assert.ok(f && f.cat === 'meat' && f.k === k && f.p === p && f.gw > 0 && f.na > 0, 'แพ็กพร้อมกิน ' + n) }
+  for (const [n, k, p] of [['อกไก่นุ่ม CP Delight กะเพรา', 90, 18], ['อกไก่นุ่ม CP Delight กระเทียมพริกไทย', 90, 17], ['อกไก่นุ่ม CP Delight ต้นตำรับ', 90, 18], ['ทูน่าสเต็ก Sealect ในน้ำแร่', 120, 30], ['อกไก่นุ่ม S-Pure รสตะไคร้', 100, 18]]) { const f = by(n); assert.ok(f && f.cat === 'meat' && f.k === k && f.p === p && f.gw > 0 && f.na > 0, 'แพ็กพร้อมกิน ' + n) }
   const ktt = by('ก๋วยเตี๋ยวไก่ตุ๋นต้มยำ น้ำข้น (พิเศษ ชามใหญ่)'); assert.ok(ktt && ktt.cat === 'noodle' && ktt.k > 700 && ktt.k < 850 && ktt.p > 45 && ktt.gw > 800, 'ก๋วยเตี๋ยวไก่ตุ๋นต้มยำ')
   const sch = by('ชเวปส์ ลิ้นจี่ซากุระ ซีโร่ชูการ์'); assert.ok(sch && sch.cat === 'drink' && sch.k === 0 && sodiumOf(sch) === 80, 'ชเวปส์ ซีโร่')
   for (const x of GRAPES) { const f = by(x.n); assert.ok(f && f.cat === 'plant' && f.gw === x.gw); assert.ok(Math.abs(f.k / f.gw * 100 - 69) < 0.7, 'kcal/100g ' + x.n + ' ' + (f.k / f.gw * 100)) }
