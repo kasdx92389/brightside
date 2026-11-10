@@ -734,8 +734,18 @@ console.log('ok — mood, memory, review')
   assert.ok(Math.abs(c1[0].k - egg.amt['น้ำมัน'] * 8.84) <= 1, 'หักเท่าพลังงานของน้ำมันในสูตร')
   assert.equal(credits(egg, [A('น้ำมันรำข้าว'), A('น้ำมันพืช/ปาล์ม'), A('น้ำมันมะกอก')], 1).length, 1, 'หลายน้ำมัน หักครั้งเดียว')
   assert.deepEqual(credits(egg, [A('หมูสับ (สุก)')], 1), [], 'เนื้อสัตว์ที่เพิ่มไม่หัก')
-  assert.deepEqual(replaces(kp, A('น้ำปลา')), ['น้ำปลา']); assert.deepEqual(replaces(kp, A('ซอสมะเขือเทศ')), [], 'ไม่ตรงกับวัตถุดิบในสูตร')
-  assert.deepEqual(replaces(kp, A('ซอสหอยนางรม')), ['ซอสหอย']); assert.deepEqual(replaces(kp, A('น้ำตาลทราย')), ['น้ำตาล'])
+  for (const n of ['น้ำปลา', 'ซอสมะเขือเทศ', 'ซอสหอยนางรม', 'น้ำตาลทราย']) assert.deepEqual(replaces(kp, A(n)), [], 'เครื่องปรุงที่เติมเพิ่มไม่หัก ' + n)
+  const ktt = FOODS.find((f) => /ไก่ตุ๋นต้มยำ/.test(f.n)); assert.deepEqual(credits(ktt, [A('น้ำปลา'), A('พริกป่น')].filter(Boolean), 1), [], 'ก๋วยเตี๋ยว + น้ำปลา/พริกป่น บวกเพิ่มทั้งหมด')
+  { // ข้อมูลที่บันทึกไว้แล้ว: ถอดแถวหักน้ำปลา/พริกป่น คืนค่าให้รายการและยอดวัน คงแถวหักน้ำมัน ทำซ้ำได้ผลเท่าเดิม
+    const { dropSauceCredits } = await import('../src/lib/sanitize.js')
+    const cr = (n, k, na) => ({ n, a: 5, w: 'g', cr: 1, k, p: -0.3, c: -0.2, f: 0, na, su: 0, sg: 0 })
+    const it = { id: 'x', n: 'ก๋วยเตี๋ยว', q: 1, s: 1, k: 683, p: 45.9, c: 71, f: 24.1, na: 1943, su: 0, sg: 0, x: [{ n: 'น้ำปลา', a: 2, w: 'ช้อนชา', k: 4, p: 0.6, c: 0.4, f: 0, na: 900, su: 0, sg: 0 }, cr('หักน้ำปลาที่รวมในเมนูแล้ว', -2, -390), cr('หักพริกป่นที่รวมในเมนูแล้ว', -7, -2), cr('หักน้ำมันที่รวมในเมนูแล้ว', -20, 0)] }
+    const log = { food: { kcal: 683, protein: 45.9, carb: 71, fat: 24.1, items: [it, { id: 'y', n: 'ไข่ต้ม', k: 70, p: 6, c: 0, f: 5 }] } }
+    const o = dropSauceCredits(log), oi = o.food.items[0]
+    assert.equal(oi.k, 692); assert.equal(oi.na, 2335); assert.equal(oi.x.length, 2); assert.ok(oi.x.some((x) => x.n === 'หักน้ำมันที่รวมในเมนูแล้ว'), 'แถวหักน้ำมันยังอยู่')
+    assert.equal(o.food.kcal, 692); assert.equal(o.food.items[1], log.food.items[1], 'รายการอื่นไม่แตะ')
+    assert.equal(dropSauceCredits(o), o, 'ทำซ้ำไม่เปลี่ยน'); assert.equal(dropSauceCredits({ food: { items: [] } }).food.items.length, 0)
+  }
   assert.deepEqual(replaces(FOODS.find((f) => !f.amt), A('น้ำมันรำข้าว')), [], 'เมนูไม่มีสูตร = ไม่หัก')
   assert.deepEqual(replaces(egg, A('กะทิ')), [], 'กะทิไม่ใช่น้ำมันปรุงอาหาร')
   console.log('ok — add-on credit (no double counting)')

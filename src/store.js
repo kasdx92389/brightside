@@ -5,7 +5,7 @@ import { byId } from './data/exercises.js'
 import { stamp } from './lib/merge.js'
 import { MOOD_BY, NOTE_MAX } from './lib/mood.js'
 import { fixPlan } from './lib/safety.js'
-import { sanitizeState } from './lib/sanitize.js'
+import { sanitizeState, dropSauceCredits } from './lib/sanitize.js'
 
 const KEY = 'brightside:v1'
 const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], foodFavs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
@@ -29,7 +29,11 @@ export function update(fn) {
   localSubs.forEach((f) => f())
 }
 /** ใส่ state ที่ merge แล้วจากคลาวด์ (ไม่ประทับเวลาใหม่ ไม่ทำให้เกิดการซิงก์ซ้ำ) */
-export const replaceState = commit
+export const replaceState = (next) => {
+  let changed = false
+  const logs = Object.fromEntries(Object.entries(next.logs || {}).map(([d, l]) => { const c = dropSauceCredits(l); if (c !== l) changed = true; return [d, c] }))
+  commit(changed ? { ...next, logs } : next)
+}
 export const onLocalChange = (f) => (localSubs.add(f), () => localSubs.delete(f))
 export const useStore = (sel = (s) => s) =>
   sel(useSyncExternalStore((f) => (subs.add(f), () => subs.delete(f)), () => state))

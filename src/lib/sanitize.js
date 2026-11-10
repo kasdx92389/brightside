@@ -43,6 +43,29 @@ export function sanitizePlan(plan) {
   return { ...plan, name: str(plan.name, 60) || 'โปรแกรมของฉัน', days }
 }
 
+// แถวหักค่ามาตรฐาน (cr) ที่เหลือได้เฉพาะ "น้ำมัน" — แถวหักน้ำปลา/ซอส/น้ำตาล/พริกป่น ฯลฯ จากแอปเวอร์ชันก่อนหน้าให้ถอดออก
+// แล้วคืนค่าที่เคยถูกหักให้รายการและยอดรวมของวัน · ไม่มีอะไรต้องแก้ = คืน log เดิม (ทำซ้ำกี่ครั้งก็ได้ผลเท่าเดิม)
+const KEEP_CR = 'หักน้ำมันที่รวมในเมนูแล้ว'
+const r1 = (v) => Math.round(v * 10) / 10
+export function dropSauceCredits(log) {
+  const items = log?.food?.items
+  if (!Array.isArray(items) || !items.some((it) => Array.isArray(it?.x) && it.x.some((x) => x?.cr && x.n !== KEEP_CR))) return log
+  const tot = { kcal: 0, protein: 0, carb: 0, fat: 0 }
+  const fixed = items.map((it) => {
+    const bad = Array.isArray(it?.x) ? it.x.filter((x) => x?.cr && x.n !== KEEP_CR) : []
+    if (!bad.length) return it
+    const sum = (k) => bad.reduce((n, x) => n - (Number(x[k]) || 0), 0)
+    tot.kcal += sum('k'); tot.protein += sum('p'); tot.carb += sum('c'); tot.fat += sum('f')
+    const x = it.x.filter((y) => !bad.includes(y))
+    const out = { ...it, k: Math.round(it.k + sum('k')), p: r1(it.p + sum('p')), c: r1(it.c + sum('c')), f: r1(it.f + sum('f')), na: Math.round((it.na || 0) + sum('na')), su: r1((it.su || 0) + sum('su')), sg: r1((it.sg || 0) + sum('sg')) }
+    if (x.length) out.x = x; else delete out.x
+    return out
+  })
+  const food = { ...log.food, items: fixed }
+  for (const k of Object.keys(tot)) if (k in food) food[k] = Math.max(0, r1((Number(food[k]) || 0) + tot[k]))
+  return { ...log, food }
+}
+
 function sanitizeLog(l) {
   if (!isObj(l)) return null
   const out = { ...l }
@@ -57,6 +80,7 @@ function sanitizeLog(l) {
     if (!f.waterLog.length) delete f.waterLog
     f.items = (Array.isArray(f.items) ? f.items : []).filter((it) => isObj(it) && typeof it.n === 'string' && Number.isFinite(Number(it.k))).slice(0, 80)
     out.food = f
+    out.food = dropSauceCredits(out).food
   }
   if (l.mood !== undefined) {
     if (isObj(l.mood) && MOOD_BY[l.mood.m]) out.mood = { m: l.mood.m, note: str(l.mood.note, NOTE_MAX), at: Number(l.mood.at) || 0 }

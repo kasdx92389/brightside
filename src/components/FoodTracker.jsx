@@ -90,7 +90,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const stepFor = (ad) => (gOn(ad) ? (ad.gStep ?? (per(ad) <= 20 ? 1 : 5)) / per(ad) : addonStep(ad))
   const shown = (ad, n) => (gOn(ad) ? r1(n * per(ad)) : r2(n))
   const picked = Object.entries(ex).map(([id, n]) => [seed.lookup[id], n])
-  const cr = credits(food, picked.map(([ad]) => ad), q) // เมนูมีน้ำมัน/เครื่องปรุงชนิดนี้อยู่แล้ว → หักค่ามาตรฐานออก ไม่นับซ้ำ
+  const cr = credits(food, picked.map(([ad]) => ad), q) // เมนูมีน้ำมันปรุงอาหารอยู่แล้ว → หักค่ามาตรฐานออก ไม่นับซ้ำ
   const crX = (k) => cr.reduce((s, x) => s + x[k], 0)
   const sumX = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0) - crX(k)
   const sumNa = picked.reduce((s, [ad, n]) => s + addonSodium(ad) * n, 0) - crX('na')
@@ -136,7 +136,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
       <details className="xbox" open={xOpen} onToggle={(e) => setXOpen(e.currentTarget.open)}>
         <summary className="more">เพิ่มรายละเอียด (น้ำมัน เครื่องปรุง ส่วนเสริม){picked.length > 0 && <b className="xcount">{picked.length}</b>}</summary>
         <div className="col" style={{ gap: '0.75rem', marginTop: '0.625rem' }}>
-          <p className="hint">ค่าของเมนูทอด/ผัดรวมน้ำมันที่ใช้ตามปกติไว้แล้ว ถ้าไม่เลือกอะไร ระบบคิดตามค่ามาตรฐาน · ถ้าเลือกน้ำมันหรือเครื่องปรุงชนิดเดียวกับที่เมนูมีอยู่ (เช่น น้ำมันที่ใช้เจียวไข่) ระบบจะหักค่ามาตรฐานออกและใช้ปริมาณที่คุณใส่แทน ไม่นับซ้ำ · ใส่เป็นช้อนหรือชั่งเป็นกรัมก็ได้</p>
+          <p className="hint">ค่าของเมนูทอด/ผัดรวมน้ำมันที่ใช้ตามปกติไว้แล้ว ถ้าไม่เลือกอะไร ระบบคิดตามค่ามาตรฐาน · ถ้าเลือกน้ำมันที่ใช้ปรุง (เช่น น้ำมันที่ใช้เจียวไข่) ระบบจะหักน้ำมันมาตรฐานของเมนูออกและใช้ปริมาณที่คุณใส่แทน ไม่นับซ้ำ · น้ำปลา ซอส น้ำตาล พริกป่น ที่เติมเพิ่มจะบวกเพิ่มจากค่าเมนูเสมอ · ใส่เป็นช้อนหรือชั่งเป็นกรัมก็ได้</p>
           {picked.length > 0 && (
             <ul className="xlist" aria-label="เครื่องปรุงที่เลือก">
               {picked.map(([ad, n]) => (
