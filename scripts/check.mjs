@@ -232,9 +232,9 @@ console.log('ok — nutrition')
 {
   for (const f of FOODS) {
     const na = sodiumOf(f)
-    assert.ok(Number.isFinite(na) && na >= 0 && na <= 3000, `sodium ${f.n}: ${na}`)
+    assert.ok(Number.isFinite(na) && na >= 0 && na <= (f.na != null ? 3500 : 3000), `sodium ${f.n}: ${na}`) // f.na = ค่าจากฉลาก (เช่น เส้นกึ่งสำเร็จรูป 3,070 มก./ถ้วย) เพดานสูงกว่าค่าประมาณ
     const g = gramsPerUnit(f)
-    assert.ok((na / g) * 100 <= (f.grp === 'dish-dip' ? 4000 : 2500), `sodium density ${f.n}: ${Math.round((na / g) * 100)} mg/100g`)
+    assert.ok((na / g) * 100 <= (f.grp === 'dish-dip' ? 4000 : f.na != null ? 3200 : 2500), `sodium density ${f.n}: ${Math.round((na / g) * 100)} mg/100g`)
   }
   for (const a of ADDONS) assert.ok(Number.isFinite(addonSodium(a)) && addonSodium(a) >= 0, 'addon sodium ' + a.n)
   const F = (n) => FOODS.find((x) => x.n === n)
@@ -666,6 +666,9 @@ console.log('ok — mood, memory, review')
   const baam = by('เวย์ไอโซเลท BAAM ISO ดาร์กช็อกโกแลต')
   assert.ok(baam && baam.cat === 'dairy' && baam.gw === 35 && baam.p === 30 && baam.sg === 0 && by('เวย์ไอโซเลท').k === 110, 'เวย์ BAAM + เวย์เดิมไม่เปลี่ยน')
   for (const [n, k, p] of [['อกไก่นุ่ม CP Delight กะเพรา', 90, 18], ['อกไก่นุ่ม CP Delight กระเทียมพริกไทย', 90, 17], ['อกไก่นุ่ม CP Delight ต้นตำรับ', 90, 18], ['ทูน่าสเต็ก Sealect ในน้ำแร่', 120, 30], ['อกไก่นุ่ม S-Pure รสตะไคร้', 100, 18]]) { const f = by(n); assert.ok(f && f.cat === 'meat' && f.k === k && f.p === p && f.gw > 0 && f.na > 0, 'แพ็กพร้อมกิน ' + n) }
+  const egc = by('ไข่ตุ๋นรสไก่สับเห็ดหอม Betagro'), hdl = by('เส้นมันนึบ รสเผ็ดหม่าล่า Haidilao')
+  assert.ok(egc && egc.cat === 'meat' && egc.gw === 150 && egc.k === 80 && egc.na > 0, 'ไข่ตุ๋น Betagro')
+  assert.ok(hdl && hdl.cat === 'noodle' && hdl.id === 'noodle-' + hdl.n && hdl.k === 350 && hdl.p === 4 && hdl.c === 65 && hdl.f === 8 && hdl.na === 3070 && hdl.gw === 99, 'เส้นมันนึบ Haidilao ตามฉลาก')
   const ktt = by('ก๋วยเตี๋ยวไก่ตุ๋นต้มยำ น้ำข้น (พิเศษ ชามใหญ่)'); assert.ok(ktt && ktt.cat === 'noodle' && ktt.k > 700 && ktt.k < 850 && ktt.p > 45 && ktt.gw > 800, 'ก๋วยเตี๋ยวไก่ตุ๋นต้มยำ')
   const sch = by('ชเวปส์ ลิ้นจี่ซากุระ ซีโร่ชูการ์'); assert.ok(sch && sch.cat === 'drink' && sch.k === 0 && sodiumOf(sch) === 80, 'ชเวปส์ ซีโร่')
   for (const x of GRAPES) { const f = by(x.n); assert.ok(f && f.cat === 'plant' && f.gw === x.gw); assert.ok(Math.abs(f.k / f.gw * 100 - 69) < 0.7, 'kcal/100g ' + x.n + ' ' + (f.k / f.gw * 100)) }
