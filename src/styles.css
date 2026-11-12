@@ -536,6 +536,7 @@ button.eat-b:active { background: var(--s3); }
 .xin:focus { box-shadow: 0 2px 0 var(--pri); }
 .xunit { min-height: 32px; padding: 0; color: var(--pri-fg); font-size: 0.8125rem; text-decoration: underline; text-underline-offset: 2px; }
 .check { display: flex; align-items: center; gap: 0.625rem; min-height: 44px; font-size: 0.9375rem; }
+.nobox { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.75rem; }
 .check input { width: 22px; height: 22px; accent-color: var(--pri); flex: none; }
 .qfoot { position: sticky; bottom: calc(-1.25rem - env(safe-area-inset-bottom)); z-index: 1; margin-inline: -1.25rem; padding: 0.625rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom)); background: var(--s1); border-top: 1px solid var(--line); }
 .qadd { width: 100%; }

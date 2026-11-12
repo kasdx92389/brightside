@@ -43,16 +43,16 @@ export function sanitizePlan(plan) {
   return { ...plan, name: str(plan.name, 60) || 'โปรแกรมของฉัน', days }
 }
 
-// แถวหักค่ามาตรฐาน (cr) ที่เหลือได้เฉพาะ "น้ำมัน" — แถวหักน้ำปลา/ซอส/น้ำตาล/พริกป่น ฯลฯ จากแอปเวอร์ชันก่อนหน้าให้ถอดออก
+// แถวหักค่ามาตรฐาน (cr) ที่เหลือได้เฉพาะ "น้ำมัน/ผงชูรส/ผงปรุงรส" — แถวหักน้ำปลา/ซอส/น้ำตาล/พริกป่น ฯลฯ จากแอปเวอร์ชันก่อนหน้าให้ถอดออก
 // แล้วคืนค่าที่เคยถูกหักให้รายการและยอดรวมของวัน · ไม่มีอะไรต้องแก้ = คืน log เดิม (ทำซ้ำกี่ครั้งก็ได้ผลเท่าเดิม)
-const KEEP_CR = 'หักน้ำมันที่รวมในเมนูแล้ว'
+const KEEP_CR = /^หัก(น้ำมัน|ผงชูรส|ผงปรุงรส)ที่รวมในเมนูแล้ว$/ // น้ำมัน (ส่วนเสริม/ช่องติ๊กไม่ใส่น้ำมัน) และผงชูรส/ผงปรุงรส (ช่องติ๊กไม่ใส่ผงชูรส)
 const r1 = (v) => Math.round(v * 10) / 10
 export function dropSauceCredits(log) {
   const items = log?.food?.items
-  if (!Array.isArray(items) || !items.some((it) => Array.isArray(it?.x) && it.x.some((x) => x?.cr && x.n !== KEEP_CR))) return log
+  if (!Array.isArray(items) || !items.some((it) => Array.isArray(it?.x) && it.x.some((x) => x?.cr && !KEEP_CR.test(x.n)))) return log
   const tot = { kcal: 0, protein: 0, carb: 0, fat: 0 }
   const fixed = items.map((it) => {
-    const bad = Array.isArray(it?.x) ? it.x.filter((x) => x?.cr && x.n !== KEEP_CR) : []
+    const bad = Array.isArray(it?.x) ? it.x.filter((x) => x?.cr && !KEEP_CR.test(x.n)) : []
     if (!bad.length) return it
     const sum = (k) => bad.reduce((n, x) => n - (Number(x[k]) || 0), 0)
     tot.kcal += sum('k'); tot.protein += sum('p'); tot.carb += sum('c'); tot.fat += sum('f')

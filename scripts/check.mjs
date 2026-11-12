@@ -751,6 +751,20 @@ console.log('ok — mood, memory, review')
   }
   assert.deepEqual(replaces(FOODS.find((f) => !f.amt), A('น้ำมันรำข้าว')), [], 'เมนูไม่มีสูตร = ไม่หัก')
   assert.deepEqual(replaces(egg, A('กะทิ')), [], 'กะทิไม่ใช่น้ำมันปรุงอาหาร')
+  { // ช่องติ๊ก ไม่ใส่น้ำมัน / ไม่ใส่ผงชูรส
+    const { dropSauceCredits } = await import('../src/lib/sanitize.js')
+    const nb = credits(egg, [], 1, { oil: true })
+    assert.equal(nb.length, 1); assert.equal(nb[0].name, 'น้ำมัน'); assert.ok(nb[0].box, 'ติ๊กไม่ใส่น้ำมัน = หักน้ำมันทั้งหมดของสูตร')
+    assert.equal(credits(egg, [A('น้ำมันรำข้าว')], 1, { oil: true }).length, 1, 'ติ๊ก + เลือกน้ำมัน หักครั้งเดียว')
+    assert.deepEqual(credits(egg, [], 1, { msg: true }), [], 'สูตรไม่มีผงชูรส = ไม่หัก')
+    const mama = FOODS.find((f) => f.amt?.['ผงปรุงรส'])
+    assert.ok(mama, 'มีเมนูที่สูตรมีผงปรุงรส')
+    const cm = credits(mama, [], 1, { msg: true })
+    assert.equal(cm[0].name, 'ผงปรุงรส'); assert.ok(cm[0].na > 0, 'หักโซเดียมของผงปรุงรส')
+    const it = { id: 'm', n: mama.n, q: 1, s: 1, k: 300, p: 5, c: 40, f: 10, na: 1800, su: 0, sg: 0, x: [{ n: 'หักผงปรุงรสที่รวมในเมนูแล้ว', a: 5, w: 'g', cr: 1, box: 1, k: -5, p: 0, c: 0, f: 0, na: -700, su: 0, sg: 0 }] }
+    const log = { food: { kcal: 300, items: [it] } }
+    assert.equal(dropSauceCredits(log), log, 'แถวหักผงปรุงรสจากช่องติ๊กไม่ถูกถอด')
+  }
   console.log('ok — add-on credit (no double counting)')
 }
 { // น้ำดื่ม: บันทึกทีละรายการ ย้อน/ลบ/ปรับยอด ได้ ยอดไม่ติดลบ ไม่หายตอน patchFood/sanitize

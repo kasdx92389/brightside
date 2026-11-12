@@ -11,7 +11,7 @@ import { sugarOf, addonSugar, itemSugar, sugarTotalOf, addonSugarTotal, itemSuga
 import { INGREDIENT_ADDONS, ingAddonById } from '../data/pantry.js'
 import { getWeighMode, setWeighMode } from '../lib/ui.js'
 import { suggestFoods } from '../lib/suggest.js'
-import { credits } from '../lib/credit.js'
+import { credits, noHas } from '../lib/credit.js'
 import { addWater, setBottle, removeWaterEntry, setWaterTotal, patchFood, addFood, removeFood, updateFood, addMyFood, removeMyFood, useStore } from '../store.js'
 
 const ML = 250 // 1 แก้ว
@@ -38,7 +38,7 @@ function Bar({ icon: Icon, label, value, goal, unit, over, limit }) {
   )
 }
 
-/** รายการที่บันทึกไว้ → { lookup, ex, gm } สำหรับเปิดแก้ไข (gm = เครื่องปรุงที่บันทึกเป็นกรัม) */
+/** รายการที่บันทึกไว้ → { lookup, ex, gm, no } สำหรับเปิดแก้ไข (gm = เครื่องปรุงที่บันทึกเป็นกรัม) */
 function fromItem(it) {
   const lookup = { ...addonById, ...ingAddonById }
   const ex = {}
@@ -56,7 +56,9 @@ function fromItem(it) {
       if (isGWord(x.w)) gm[id] = true
     }
   })
-  return { lookup, ex, gm }
+  const no = { oil: false, msg: false }
+  for (const x of it?.x || []) if (x.cr && x.box) { if (/น้ำมัน/.test(x.n)) no.oil = true; else no.msg = true } // แถวหักที่มาจากช่องติ๊ก "ไม่ใส่…"
+  return { lookup, ex, gm, no }
 }
 
 /** เลือกปริมาณ: ตามหน่วยของอาหาร (ฟอง/ชิ้น = จำนวนเต็ม · ชาม/จาน = ครึ่งได้) หรือ "ชั่งเป็นกรัม" ถ้ารู้น้ำหนักต่อหน่วย
@@ -73,6 +75,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const [xOpen, setXOpen] = useState(() => Object.keys(seed.ex).length > 0)
   const [ex, setEx] = useState(seed.ex) // id เครื่องปรุง → จำนวน (นับเป็นหน่วยของมัน)
   const [gm, setGm] = useState(seed.gm) // id เครื่องปรุง → แสดง/ใส่เป็นกรัม
+  const [no, setNo] = useState(seed.no) // ติ๊ก "ไม่ใส่น้ำมัน/ผงชูรส": หักของที่เมนูนี้รวมไว้ในสูตรมาตรฐานออก
   const [xq, setXq] = useState('')
   const a = clamp(Number(val) || 0, 0, u.max)
   const q = a / u.base
@@ -90,7 +93,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const stepFor = (ad) => (gOn(ad) ? (ad.gStep ?? (per(ad) <= 20 ? 1 : 5)) / per(ad) : addonStep(ad))
   const shown = (ad, n) => (gOn(ad) ? r1(n * per(ad)) : r2(n))
   const picked = Object.entries(ex).map(([id, n]) => [seed.lookup[id], n])
-  const cr = credits(food, picked.map(([ad]) => ad), q) // เมนูมีน้ำมันปรุงอาหารอยู่แล้ว → หักค่ามาตรฐานออก ไม่นับซ้ำ
+  const cr = credits(food, picked.map(([ad]) => ad), q, no) // เมนูมีน้ำมันปรุงอาหารอยู่แล้ว → หักค่ามาตรฐานออก ไม่นับซ้ำ
   const crX = (k) => cr.reduce((s, x) => s + x[k], 0)
   const sumX = (k) => picked.reduce((s, [ad, n]) => s + ad[k] * n, 0) - crX(k)
   const sumNa = picked.reduce((s, [ad, n]) => s + addonSodium(ad) * n, 0) - crX('na')
@@ -111,7 +114,7 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
   const found = xkey ? SEARCH_ADDONS.filter((ad) => matchName(ad.n, xkey)) : null
   const tips = suggestAddons(food).map((id) => addonById[id]).filter(Boolean)
   const extras = () => picked.map(([ad, n]) => ({ n: ad.n, a: shown(ad, n), w: gOn(ad) ? 'g' : ad.u, k: Math.round(ad.k * n), p: r1(ad.p * n), c: r1(ad.c * n), f: r1(ad.f * n), na: Math.round(addonSodium(ad) * n), su: r1(addonSugar(ad) * n), sg: r1(addonSugarTotal(ad) * n) }))
-  const submit = () => onAdd(q, r2(a), u.word, [...extras(), ...cr.map((x) => ({ n: `หัก${x.name}ที่รวมในเมนูแล้ว`, a: x.g, w: 'g', cr: 1, k: -x.k, p: -x.p, c: -x.c, f: -x.f, na: -x.na, su: -x.su, sg: -x.sg }))])
+  const submit = () => onAdd(q, r2(a), u.word, [...extras(), ...cr.map((x) => ({ n: `หัก${x.name}ที่รวมในเมนูแล้ว`, a: x.g, w: 'g', cr: 1, ...(x.box && { box: 1 }), k: -x.k, p: -x.p, c: -x.c, f: -x.f, na: -x.na, su: -x.su, sg: -x.sg }))])
   const chip = (ad) => <button key={ad.id} type="button" className="xchip" aria-pressed={!!ex[ad.id]} onClick={() => toggle(ad)}><span className="xn">{ad.n}</span><span className="xk2">{ad.gOnly ? `${r1(ad.k * 10)} kcal${addonSodium(ad) * 10 >= 50 ? ` · Na ${addonSodium(ad) * 10}` : ''}${addonSugarTotal(ad) * 10 >= 5 ? ` · น้ำตาล ${r1(addonSugarTotal(ad) * 10)}` : ''} / 100 g` : `${ad.k} kcal${addonSodium(ad) >= 50 ? ` · Na ${addonSodium(ad)}` : ''}${addonSugarTotal(ad) >= 2 ? ` · น้ำตาล ${r1(addonSugarTotal(ad))}` : ''} / ${ad.u}`}</span></button>
   return (
     <>
@@ -132,6 +135,14 @@ function QtyPicker({ food, slot, setSlot, onAdd, onDelete, onDeleteFood, init, l
         {last && last.w === u.word && !u.presets.includes(last.a) && <button type="button" className="chip" style={{ gridColumn: '1 / -1' }} aria-pressed={a === last.a} onClick={() => setVal(String(last.a))} title="ปริมาณที่เพิ่มครั้งล่าสุด">ครั้งก่อน {fmtAmt(last.a)} {u.word}</button>}
         {u.presets.map((p) => <button key={p} type="button" className="chip" aria-pressed={a === p} onClick={() => setVal(String(p))}>{fmtAmt(p)}</button>)}
       </div>
+
+      {food.amt && (
+        <div className="nobox" role="group" aria-label="ไม่ใส่">
+          {[['oil', 'ไม่ใส่น้ำมัน'], ['msg', 'ไม่ใส่ผงชูรส']].map(([key, label]) => (
+            <label key={key} className="check"><input type="checkbox" checked={!!no[key] && noHas(food, key)} disabled={!noHas(food, key)} onChange={(e) => setNo((c) => ({ ...c, [key]: e.target.checked }))} /> <span>{label}{!noHas(food, key) && <span className="mute xs"> (สูตรนี้ไม่มี)</span>}</span></label>
+          ))}
+        </div>
+      )}
 
       <details className="xbox" open={xOpen} onToggle={(e) => setXOpen(e.currentTarget.open)}>
         <summary className="more">เพิ่มรายละเอียด (น้ำมัน เครื่องปรุง ส่วนเสริม){picked.length > 0 && <b className="xcount">{picked.length}</b>}</summary>
