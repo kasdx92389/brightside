@@ -5,10 +5,10 @@ const botReps = (s) => Number(String(s).match(/\d+/)?.[0]) || 0 // '10–12' →
 
 /**
  * ก้าวเพิ่ม/ลดน้ำหนักที่เหมาะกับอุปกรณ์และน้ำหนักปัจจุบัน — ACSM 2009: เพิ่มครั้งละ ~2–10% เมื่อทำเกินเป้า 1–2 ครั้ง
- * (ดัมเบลเบาเล็กสุด 1 กก. จึงอาจเกิน 10% ได้ นั่นคือก้าวที่เล็กที่สุดที่ทำได้จริง)
+ * ดัมเบลมีแต่เลขคู่ (2, 4, 6, 8, 10…) จึงก้าวละ 2 กก. เสมอ ไม่มี 3, 5, 7 (เบาๆ อาจเกิน 10% นั่นคือก้าวที่เล็กที่สุดที่ทำได้จริง)
  */
 export function loadStep(eq, kg) {
-  if (eq === 'db') return kg <= 10 ? 1 : kg < 30 ? 2 : 2.5
+  if (eq === 'db') return 2
   if (eq === 'bb') return kg < 60 ? 2.5 : 5
   if (eq === 'cable' || eq === 'machine') return kg < 50 ? 2.5 : 5
   return 2.5
@@ -39,7 +39,8 @@ export function overloadHint(logs, id, reps, before, step = 2.5, eq) {
     const kg = Math.max(...done.map((x) => Number(x.kg) || 0))
     if (!kg) return null
     const hit = done.length >= sets.length && done.every((x) => Number(x.reps) >= top && Number(x.kg) >= kg)
-    return hit ? { kg: kg + (eq ? loadStep(eq, kg) : step), was: kg } : null
+    // ดัมเบล: ปัดขึ้นเป็นเลขคู่ถัดไปเสมอ (ครั้งก่อนบันทึกเลขคี่ไว้ เช่น 5 → 6 ไม่ใช่ 7)
+    return hit ? { kg: eq === 'db' ? Math.floor(kg / 2) * 2 + 2 : kg + (eq ? loadStep(eq, kg) : step), was: kg } : null
   }
   return null
 }
@@ -62,7 +63,8 @@ export function regressHint(logs, id, reps, before, eq) {
     const st = loadStep(eq, kg)
     let nk = Math.round((kg * 0.9) / st) * st
     if (nk >= kg) nk = kg - st // ปัดแล้วไม่ลด → ลดอย่างน้อย 1 ก้าว
-    return { kg: Math.max(st, nk), was: kg }
+    const out = Math.max(st, nk)
+    return out < kg ? { kg: out, was: kg } : null // เบาสุดแล้ว (เช่น ดัมเบล 2 กก.) ลดต่อไม่ได้
   }
   return null
 }

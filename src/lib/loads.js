@@ -52,7 +52,7 @@ const levelF = (l) => [1, 1, 1.3, 1.6][l] || 1
 const round = (v, tag) => {
   if (tag === 'b') return Math.max(10, Math.round(v / 2.5) * 2.5)
   if (tag === 's') return Math.max(2.5, v < 20 ? Math.round(v / 2.5) * 2.5 : Math.round(v / 5) * 5)
-  return Math.max(1, v < 10 ? Math.round(v) : Math.round(v / 2) * 2) // ดัมเบล/ตัวเดียว
+  return Math.max(2, Math.round(v / 2) * 2) // ดัมเบล/ตัวเดียว: เลขคู่เท่านั้น (2, 4, 6, 8…)
 }
 
 /** → { kg, tag } หรือ null (ตัวเปล่า/คาร์ดิโอ/ยางยืด/ไม่มีข้อมูลโปรไฟล์) */

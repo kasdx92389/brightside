@@ -116,15 +116,18 @@ const med = achievements({ finished: 10, streak: 3, hasPR: true, lost: -2.4, mea
 assert.deepEqual(med.filter((m) => m.done).map((m) => m.id), ['first', 'ten', 'pr', 'lost'])
 // ก้าวน้ำหนักตามอุปกรณ์ + ถอยเมื่อยกไม่ไหวจริง
 assert.equal(loadStep('machine', 45), 2.5, 'machine/cable <50 kg: 2.5 (≤10% step, ACSM 2–10%)')
-assert.deepEqual([loadStep('db', 5), loadStep('db', 12), loadStep('db', 35), loadStep('bb', 40), loadStep('bb', 100), loadStep('machine', 20), loadStep('machine', 60), loadStep('bw', 0)], [1, 2, 2.5, 2.5, 5, 2.5, 5, 2.5])
+assert.deepEqual([loadStep('db', 5), loadStep('db', 12), loadStep('db', 35), loadStep('bb', 40), loadStep('bb', 100), loadStep('machine', 20), loadStep('machine', 60), loadStep('bw', 0)], [2, 2, 2, 2.5, 5, 2.5, 5, 2.5], 'ดัมเบลก้าวละ 2 เสมอ (เลขคู่)')
 {
   const mk = (kg, reps) => ({ '2026-11-01': { sets: { x: reps.map((r) => ({ done: true, kg, reps: r })) } } })
-  // ครบช่วงเป้าหมาย (3×10–12 ทำ 12,12,12 ที่ ดัมเบล 5 กก.) → +1 กก. ไม่ใช่ +2.5
-  assert.deepEqual(overloadHint(mk(5, [12, 12, 12]), 'x', '10–12', '2026-11-02', 2.5, 'db'), { kg: 6, was: 5 })
+  // ดัมเบลมีแต่เลขคู่: 2→4, 6→8 ไม่เคยแนะนำ 3/7 · บันทึกเลขคี่ไว้ (5) → ปัดขึ้นเลขคู่ถัดไป (6)
+  const dbUp = (kg) => overloadHint(mk(kg, [12, 12, 12]), 'x', '10–12', '2026-11-02', 2.5, 'db').kg
+  assert.deepEqual([dbUp(2), dbUp(6), dbUp(5), dbUp(10), dbUp(30), dbUp(32)], [4, 8, 6, 12, 32, 34])
   assert.deepEqual(overloadHint(mk(60, [8, 8, 8]), 'x', '6–8', '2026-11-02', 2.5, 'machine'), { kg: 65, was: 60 })
   assert.deepEqual(overloadHint(mk(20, [12, 12, 12]), 'x', '10–12', '2026-11-02'), { kg: 22.5, was: 20 }, 'legacy default step kept')
   // ยกไม่ถึงช่วง (เป้า 10–12 ทำได้ 7,6,6 ที่ 10 กก.) → ลด ~10% ปัดตามอุปกรณ์
-  assert.deepEqual(regressHint(mk(10, [7, 6, 6]), 'x', '10–12', '2026-11-02', 'db'), { kg: 9, was: 10 })
+  assert.deepEqual(regressHint(mk(10, [7, 6, 6]), 'x', '10–12', '2026-11-02', 'db'), { kg: 8, was: 10 })
+  assert.equal(regressHint(mk(2, [7, 6, 6]), 'x', '10–12', '2026-11-02', 'db'), null, 'ดัมเบล 2 กก. เบาสุดแล้ว ลดต่อไม่ได้')
+  assert.ok([3, 5, 7, 10, 16, 22].every((k) => regressHint(mk(k, [7, 6, 6]), 'x', '10–12', '2026-11-02', 'db').kg % 2 === 0), 'ลดแล้วยังเป็นเลขคู่')
   assert.equal(regressHint(mk(10, [9, 9, 9]), 'x', '10–12', '2026-11-02', 'db'), null, 'only 1 under range is fine')
   assert.equal(regressHint(mk(10, [7]), 'x', '10–12', '2026-11-02', 'db'), null, 'one set is not enough')
   assert.equal(regressHint(mk(10, [3, 3, 3]), 'x', '30 วินาที', '2026-11-02', 'db'), null, 'timed ignored')
@@ -311,6 +314,7 @@ console.log('ok — nutrition')
     for (const e of weighted) {
       const r = suggestKg(e, p)
       assert.ok(r && r.kg > 0 && r.kg <= 400 && Number.isFinite(r.kg), `load ${e.id} ${JSON.stringify(p)} -> ${r?.kg}`)
+      if (r.tag === 'h' || r.tag === 't') assert.ok(r.kg >= 2 && r.kg % 2 === 0, `dumbbell must be even: ${e.id} ${JSON.stringify(p)} -> ${r.kg}`)
     }
   }
 }
