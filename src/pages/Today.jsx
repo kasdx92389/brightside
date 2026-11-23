@@ -14,7 +14,7 @@ import { suggestKg, personalFactor, LOAD_UNIT } from '../lib/loads.js'
 import { bmi as calcBmi } from '../lib/calc.js'
 import {
   useStore, editDay, setLoadAdj, patchSet, finishDay, skipDay, toggleWarm, startDeload, endDeload,
-  setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, streak,
+  setsOf, progressOf, itemsFor, volumeOf, setsDone, lastKg, dayStatus, dayFor, streak,
 } from '../store.js'
 
 const firstInt = (s) => String(s).match(/\d+/)?.[0] || ''
@@ -117,7 +117,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
   const date = dateParam || dateKey()
   const d = new Date(date + 'T00:00:00')
   const di = dayIdx(d)
-  const day = plan.days[di]
+  const { day, src } = dayFor(s, date) // วันฝึกที่ใช้จริง (อาจถูกปรับหลังกดปวดขา) · src = ดัชนีวันในแม่แบบ
   const log = logs[date]
   const items = itemsFor(s, date)
   const { total, done, pct } = progressOf(s, date)
@@ -137,7 +137,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
     const cur = day.items.find((i) => i.id === swap.id)
     const [sets, reps] = parseRx(e.rx)
     const keep = !isTimed(reps) && !isTimed(cur.reps)
-    editDay(di, (d) => ({ ...d, items: d.items.map((i) => (i.id === swap.id ? { id: e.id, sets: keep ? cur.sets : sets, reps } : i)) }))
+    editDay(src, (d) => ({ ...d, items: d.items.map((i) => (i.id === swap.id ? { id: e.id, sets: keep ? cur.sets : sets, reps } : i)) }))
     toast(`เปลี่ยนเป็น ${e.th} แล้ว`)
     setSwap(null)
     setOpen(null)

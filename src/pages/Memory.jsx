@@ -3,7 +3,7 @@ import { MoodFace, MoodCard } from '../components/Mood.jsx'
 import { MOODS, moodOf, noteOf, isLow, isHigh, monthSummary, moodVsTraining, pastEncouragement, validDate, validMonth } from '../lib/mood.js'
 import { dateKey, dayIdx, targets } from '../lib/calc.js'
 import { addDays } from '../lib/coach.js'
-import { useStore, dayStatus, setsDone, volumeOf } from '../store.js'
+import { useStore, dayStatus, dayFor, setsDone, volumeOf } from '../store.js'
 
 const WEEK = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา']
 const dt = (k) => new Date(k + 'T00:00:00')
@@ -91,7 +91,7 @@ function Day({ date, s, today }) {
   const mo = moodOf(log), note = noteOf(log)
   const future = date > today
   const st = dayStatus(s, date)
-  const day = plan.days[dayIdx(dt(date))]
+  const day = dayFor(s, date).day
   const w = weights.find((x) => x.date === date)
   const food = log?.food
   const t = targets(profile)

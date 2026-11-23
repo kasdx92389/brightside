@@ -106,6 +106,15 @@ export function applySore(s, today) {
   return { ...s, logs }
 }
 
+/** วันฝึกที่ใช้จริงของวันที่หนึ่ง: แม่แบบวัน adj.as (ถ้ามี) ตัดท่าใน adj.drop · src = ดัชนีวันในแม่แบบ (ใช้ตอน editDay) · adj เสีย → ใช้วันตามปฏิทิน */
+export function dayFor(s, date) {
+  const adj = s.logs?.[date]?.adj
+  const src = Number.isInteger(adj?.as) && s.plan?.days[adj.as] ? adj.as : idx(date)
+  const base = s.plan?.days[src]
+  const drop = Array.isArray(adj?.drop) ? adj.drop : []
+  return { day: base && drop.length ? { ...base, items: base.items.filter((it) => !drop.includes(it.id)) } : base, src, adj }
+}
+
 /** บรรทัดสรุปการปรับของวันหนึ่ง สำหรับแสดงใน UI */
 export function describeAdj(plan, date, adj) {
   const name = DAY_SHORT[idx(date)] + '.'

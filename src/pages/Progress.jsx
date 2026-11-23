@@ -7,7 +7,7 @@ import { itemSugar, itemSugarTotal } from '../data/sugar.js'
 import { bmi, bmiBand, dateKey, dayIdx, targets } from '../lib/calc.js'
 import { addDays, daysBetween, goalProgress } from '../lib/coach.js'
 import {
-  useStore, addWeight, addMeasure, dayStatus, streak, personalBests, volumeOf, setsDone, weekStats, getAchievements, finishedDates, waterGoal,
+  useStore, addWeight, addMeasure, dayStatus, dayFor, streak, personalBests, volumeOf, setsDone, weekStats, getAchievements, finishedDates, waterGoal,
 } from '../store.js'
 import { Field } from '../components/ui.jsx'
 import ReviewCard from '../components/ReviewCard.jsx'
@@ -226,7 +226,7 @@ export default function Progress({ toast }) {
           <table className="tbl"><tbody>
             {finished.slice(0, 8).map((d) => {
               const l = logs[d]
-              return <tr key={d}><td><a href={`#/today/${d}`} style={{ color: 'inherit' }}><b>{plan.days[dayIdx(new Date(d + 'T00:00:00'))].name}</b></a><br /><span className="mute xs">{short(d)} · แตะเพื่อดู/แก้ไข</span></td><td>{setsDone(l)} เซ็ต{volumeOf(l) > 0 && <><br /><span className="mute xs">{volumeOf(l).toLocaleString()} กก.</span></>}</td></tr>
+              return <tr key={d}><td><a href={`#/today/${d}`} style={{ color: 'inherit' }}><b>{dayFor(s, d).day?.name}</b></a><br /><span className="mute xs">{short(d)} · แตะเพื่อดู/แก้ไข</span></td><td>{setsDone(l)} เซ็ต{volumeOf(l) > 0 && <><br /><span className="mute xs">{volumeOf(l).toLocaleString()} กก.</span></>}</td></tr>
             })}
           </tbody></table>
         ) : <p className="mute">ยังไม่มีบันทึก — ไปหน้า “วันนี้” แล้วเริ่มเซ็ตแรกได้เลย</p>}

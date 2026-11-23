@@ -1,12 +1,12 @@
 import { useSyncExternalStore } from 'react'
-import { dateKey, dayIdx, targets } from './lib/calc.js'
+import { dateKey, targets } from './lib/calc.js'
 import { achievements, addDays, inDeload } from './lib/coach.js'
 import { byId } from './data/exercises.js'
 import { stamp } from './lib/merge.js'
 import { MOOD_BY, NOTE_MAX } from './lib/mood.js'
 import { fixPlan } from './lib/safety.js'
 import { sanitizeState, dropSauceCredits } from './lib/sanitize.js'
-import { applySore } from './lib/resched.js'
+import { applySore, dayFor } from './lib/resched.js'
 
 const KEY = 'brightside:v1'
 const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], foodFavs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
@@ -181,18 +181,11 @@ export const resetAll = () => update(() => ({ ...EMPTY, createdAt: dateKey() }))
 // ───── selectors / helpers ─────
 export const setsOf = (log, it) => Array.from({ length: it.sets }, (_, i) => log?.sets?.[it.id]?.[i] || {})
 
-/** วันฝึกที่ใช้จริงของวันที่หนึ่ง: แม่แบบวัน adj.as (ถ้ามี) ตัดท่าใน adj.drop · src = ดัชนีวันในแม่แบบ (ใช้ตอน editDay) · adj เสีย → ใช้วันตามปฏิทิน */
-export function dayFor(s, date) {
-  const adj = s.logs[date]?.adj
-  const src = Number.isInteger(adj?.as) && s.plan?.days[adj.as] ? adj.as : dayIdx(new Date(date + 'T00:00:00'))
-  const base = s.plan?.days[src]
-  const drop = Array.isArray(adj?.drop) ? adj.drop : []
-  return { day: base && drop.length ? { ...base, items: base.items.filter((it) => !drop.includes(it.id)) } : base, src, adj }
-}
+export { dayFor } // อยู่ใน lib/resched.js (ฟังก์ชันล้วน ให้ lib/review.js ใช้ได้โดยไม่แตะ store)
 
 /** รายการท่าของวันนั้น (สัปดาห์เบา = ไม่เกิน 2 เซ็ตต่อท่า) */
 export function itemsFor(s, date) {
-  const day = s.plan?.days[dayIdx(new Date(date + 'T00:00:00'))]
+  const day = dayFor(s, date).day
   const light = inDeload(s, date)
   return (day?.items || []).filter((it) => byId[it.id]).map((it) => (light ? { ...it, sets: Math.min(it.sets, 2) } : it))
 }
@@ -233,7 +226,7 @@ export function personalBests(logs) {
 
 // สถานะวัน: 'done' | 'rest' | 'skip' | 'miss' | 'todo' | 'pre' (ก่อนเริ่มใช้แอป)
 export function dayStatus(s, date) {
-  const day = s.plan?.days[dayIdx(new Date(date + 'T00:00:00'))]
+  const day = dayFor(s, date).day
   if (s.logs[date]?.finished) return 'done'
   if (date < s.createdAt) return 'pre'
   if (s.logs[date]?.skipped) return 'skip'

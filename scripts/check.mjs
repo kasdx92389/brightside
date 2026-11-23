@@ -995,3 +995,26 @@ console.log('ok — mood, memory, review')
   replaceState(saved)
   console.log('ok — sore-skip adjustments stored, undone and sanitized')
 }
+
+// ── ทุกที่อ่านวันฝึกผ่าน dayFor: itemsFor · dayStatus · adherence · groupBalance ──
+{
+  const { skipDay, replaceState, itemsFor, dayStatus } = await import('../src/store.js')
+  const { dayIdx } = await import('../src/lib/calc.js')
+  let m = '2099-01-01'; while (dayIdx(new Date(m + 'T00:00:00')) !== 0) m = addDays(m, 1)
+  const [, , WED, THU, FRI, SAT, SUN] = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(m, i)), NEXT_MON = addDays(m, 7)
+  const legs = { finished: true, sets: { 'goblet-squat': [{ done: true }] } }
+  const saved = getState()
+  const week = (plan) => { replaceState({ ...saved, plan, createdAt: '2026-01-01', logs: { [WED]: legs } }); skipDay(THU, true, 'sore', THU); return getState() }
+
+  const s = week(PPL)
+  assert.deepEqual(itemsFor(s, FRI).map((i) => i.id), PPL.days[4].items.map((i) => i.id).filter((id) => id !== 'db-rdl'))
+  assert.deepEqual(itemsFor(s, SAT).map((i) => i.id), PPL.days[3].items.map((i) => i.id), 'วันเสาร์ใช้ท่าของ Push 2 ที่ย้ายมา')
+  assert.deepEqual([dayStatus(s, FRI), dayStatus(s, SAT), dayStatus(s, SUN), dayStatus(s, THU)], ['todo', 'todo', 'rest', 'skip'], 'เสาร์ไม่ใช่วันเดินเดิม')
+  assert.equal(groupBalance(s, NEXT_MON, 7).find((g) => g.g === 'legs').planned, 6, 'ท่าขาที่ตัดออกไม่นับเป็นเซ็ตตามแผน (เดิม 9)')
+
+  const g6 = week(generatePlan({ goal: 'fit', level: 2, days: 6, equip: 'gym' }))
+  const a = adherence(g6, NEXT_MON, 7)
+  assert.deepEqual([a.done, a.miss], [1, 4], 'เสาร์=Push 2 ที่ย้าย, อาทิตย์=ขาที่ย้าย ถูกนับเป็นวันที่แผนกำหนด (เดิมนับอาทิตย์เป็นวันพัก = พลาด 3)')
+  replaceState(saved)
+  console.log('ok — effective day read through dayFor')
+}

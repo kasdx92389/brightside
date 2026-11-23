@@ -4,11 +4,11 @@ import { targets } from './calc.js'
 import { addDays, daysBetween } from './coach.js'
 import { moodOf, isLow, recentMoods } from './mood.js'
 import { byId, GROUPS } from '../data/exercises.js'
+import { dayFor } from './resched.js'
 
 export const ADJ_MAX = 300 // ปรับเป้าแคลอรี่สะสมได้ไม่เกิน ±300 kcal จากสูตรมาตรฐาน
 export const ADJ_STEP = 150
 
-const dow = (k) => (new Date(k + 'T00:00:00').getDay() + 6) % 7 // จันทร์ = 0
 
 /** แนวโน้มน้ำหนักช่วง [from,to] แบบเส้นตรง (ต้อง ≥3 ครั้ง และกินช่วง ≥14 วัน กันความผันผวนของน้ำในร่างกาย) */
 export function weightTrend(weights, from, to) {
@@ -85,7 +85,7 @@ export function adherence(s, today, days = 28) {
   let done = 0, miss = 0
   for (let i = days - 1; i >= 0; i--) {
     const d = addDays(today, -i)
-    const day = s.plan?.days[dow(d)]
+    const day = dayFor(s, d).day
     if (!day || day.kind === 'rest' || d < s.createdAt || s.logs[d]?.skipped) continue
     if (s.logs[d]?.finished) done++
     else if (d < today) miss++
@@ -99,7 +99,7 @@ export function groupBalance(s, today, days = 14) {
   const acc = {}
   for (let i = days; i >= 1; i--) {
     const d = addDays(today, -i)
-    const day = s.plan?.days[dow(d)]
+    const day = dayFor(s, d).day
     if (!day || day.kind === 'rest' || d < s.createdAt || s.logs[d]?.skipped) continue
     for (const it of day.items || []) {
       const e = byId[it.id]
