@@ -1018,3 +1018,19 @@ console.log('ok — mood, memory, review')
   replaceState(saved)
   console.log('ok — effective day read through dayFor')
 }
+
+// ── สรุปการปรับของหลายวันสำหรับ UI (Today/Plan) ──
+{
+  const { adjLines } = await import('../src/lib/resched.js')
+  const { skipDay, replaceState } = await import('../src/store.js')
+  const { dayIdx } = await import('../src/lib/calc.js')
+  let m = '2099-01-01'; while (dayIdx(new Date(m + 'T00:00:00')) !== 0) m = addDays(m, 1)
+  const [, , WED, THU, FRI, SAT, SUN] = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(m, i))
+  const saved = getState()
+  replaceState({ ...saved, plan: PPL, createdAt: '2026-01-01', logs: { [WED]: { finished: true, sets: { 'goblet-squat': [{ done: true }] } } } })
+  assert.deepEqual(adjLines(getState(), [THU, FRI, SAT, SUN]), [], 'ยังไม่ข้าม = ไม่มีอะไรให้สรุป')
+  skipDay(THU, true, 'sore', THU)
+  assert.deepEqual(adjLines(getState(), [THU, FRI, SAT, SUN]), [`ศ. ตัด ${byId['db-rdl'].th}`, 'ส. Push 2 (ย้ายมาจาก พฤ.)'])
+  replaceState(saved)
+  console.log('ok — adjustment summary lines')
+}

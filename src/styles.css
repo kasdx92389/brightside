@@ -666,3 +666,7 @@ a.mday:hover { background: var(--s2); }
 .wlog li { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 10px; background: var(--s2); }
 .wlog .icon-btn { width: 36px; height: 36px; }
 .badge .streak-ico { transform: translateY(-3%); } /* ไอคอนไฟ (15px): กึ่งกลางตรงกับตัวเลข ฐานต่ำกว่าเส้นฐานไม่เกิน ~1px */
+
+/* ตารางถูกปรับหลังกด "ปวดขา" (lib/resched.js): จุดเล็กมุมวันในแถบสัปดาห์ */
+.week a.adj { position: relative; }
+.week a.adj::after { content: ''; position: absolute; top: 5px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn-fg); }

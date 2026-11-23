@@ -8,8 +8,9 @@ import { byId } from '../data/exercises.js'
 import { minutesOf, itemLabel, parseRx } from '../data/plan.js'
 import { DAY_TH, DAY_SHORT, dateKey, dayIdx } from '../lib/calc.js'
 import { MoodCard } from '../components/Mood.jsx'
+import { adjLines, legShare } from '../lib/resched.js'
 import SafetyBanner from '../components/SafetyBanner.jsx'
-import { isTimed, timedSeconds, overloadHint, regressHint, deloadDue, inDeload } from '../lib/coach.js'
+import { addDays, isTimed, timedSeconds, overloadHint, regressHint, deloadDue, inDeload } from '../lib/coach.js'
 import { suggestKg, personalFactor, LOAD_UNIT } from '../lib/loads.js'
 import { bmi as calcBmi } from '../lib/calc.js'
 import {
@@ -37,6 +38,7 @@ function StopSigns({ profile }) {
         <li>เจ็บหรือแน่นหน้าอก ใจสั่นผิดจังหวะ</li>
         <li>เวียนหัวจะเป็นลม หน้ามืด หายใจไม่ทันผิดปกติ</li>
         <li>เจ็บแปลบที่ข้อ หลัง หรือคอ ชา หรือร้าวลงแขนขา</li>
+        <li>ปวดกล้ามเนื้อรุนแรงมากหลังออกกำลังกาย ร่วมกับบวมตึงหรือปัสสาวะสีชา</li>
         {preg && <li><b>ตั้งครรภ์:</b> เลือดออกทางช่องคลอด น้ำเดิน ปวดท้อง/มดลูกบีบเป็นจังหวะ ปวดหัวมาก น่องบวมหรือปวด หายใจลำบากก่อนออกแรง ลูกดิ้นน้อยลง</li>}
       </ul>
       <p className="hint">หยุดพักก่อน ถ้าไม่หายหรือรุนแรง ไปพบแพทย์หรือโทร 1669 {preg && '· อ้างอิง ACOG Committee Opinion 804'}</p>
@@ -130,6 +132,7 @@ export default function Today({ date: dateParam, startTimer, toast }) {
   const skipped = !!log?.skipped
   const light = inDeload(s, date)
   const sr = streak(s)
+  const soreLines = log?.why === 'sore' ? adjLines(s, Array.from({ length: 7 }, (_, i) => addDays(date, i + 1))) : [] // การปรับตารางที่เกิดจากการข้ามวันนี้
   const mins = (a, b) => Math.max(1, Math.round((b - a) / 60000))
   const train = items.length > 0 && day.kind !== 'rest'
   // สลับท่าในแผนของวันนี้ (อ่านเซ็ต/ครั้งจากแผนจริง ไม่ใช่ค่าที่ลดตอนสัปดาห์เบา)
@@ -157,9 +160,9 @@ export default function Today({ date: dateParam, startTimer, toast }) {
       <nav className="week" aria-label="สัปดาห์นี้">
         {weekOf(d).map((x, i) => {
           const k = dateKey(x)
-          const st = dayStatus(s, k)
+          const st = dayStatus(s, k), moved = !!logs[k]?.adj // วันที่ตารางถูกปรับหลังกดปวดขา
           return (
-            <a key={k} href={`#/today/${k}`} className={st === 'rest' && k < dateKey() ? 'rest past' : st} aria-current={k === date ? 'date' : undefined} aria-label={`${DAY_TH[i]} ${STATUS_TH[st]}`}>
+            <a key={k} href={`#/today/${k}`} className={`${st === 'rest' && k < dateKey() ? 'rest past' : st}${moved ? ' adj' : ''}`} aria-current={k === date ? 'date' : undefined} aria-label={`${DAY_TH[i]} ${STATUS_TH[st]}${moved ? ' ปรับแล้ว' : ''}`}>
               {DAY_SHORT[i]}
               <i>{st === 'done' && <Check />}{st === 'skip' && <Moon />}{st === 'rest' && k <= dateKey() && <BedDouble />}</i>
             </a>
@@ -230,6 +233,13 @@ export default function Today({ date: dateParam, startTimer, toast }) {
       {train && skipped && (
         <section className="card col">
           <p className="mute">ข้ามวันนี้แล้ว — ร่างกายต้องการพักเพิ่มก็ไม่เป็นไร ระบบไม่นับว่าพลาดและไม่ตัดสถิติต่อเนื่อง</p>
+          {log?.why === 'sore' && (
+            <>
+              <p className="sm"><b>ปรับตารางตามอาการปวดขา</b>{!soreLines.length && ' — ไม่มีวันไหนใน 7 วันข้างหน้าต้องเปลี่ยน'}</p>
+              {soreLines.length > 0 && <ul className="sm" style={{ paddingLeft: '1.1rem' }}>{soreLines.map((l) => <li key={l}>{l}</li>)}</ul>}
+              <p className="hint">ปวดมากผิดปกติ ขาบวมตึง หรือปัสสาวะสีชา ให้ไปพบแพทย์ · กด "กลับมาฝึกวันนี้" เพื่อยกเลิกการปรับ</p>
+            </>
+          )}
           <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => skipDay(date, false)}><Undo2 /> กลับมาฝึกวันนี้</button>
         </section>
       )}
@@ -248,6 +258,8 @@ export default function Today({ date: dateParam, startTimer, toast }) {
             <Check /> {pct === 1 ? 'จบการฝึกวันนี้' : done ? `จบการฝึก (ทำแล้ว ${done}/${total} เซ็ต)` : 'ทำอย่างน้อย 1 เซ็ตก่อนจบ'}
           </button>
           {done === 0 && <button className="btn ghost block" onClick={() => { skipDay(date); toast('ข้ามวันนี้ พักเพิ่มได้เลย') }}><Moon /> เหนื่อยหรือไม่ว่าง — ข้ามวันนี้</button>}
+          {done === 0 && <button className="btn ghost block" onClick={() => { skipDay(date, true, 'sore'); toast('ข้ามแล้ว ปรับตารางให้แล้ว') }}><HeartPulse /> ปวดขา — ข้ามและปรับตาราง</button>}
+          {done === 0 && day.kind === 'train' && legShare(day) === 0 && <p className="hint">วันนี้ไม่ได้ใช้ขา ถ้าไหวลองเล่นเบาๆ ได้ ออกแรงเบาช่วยลดปวดได้ชั่วคราว</p>}
         </div>
       ))}
 

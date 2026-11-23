@@ -8,7 +8,9 @@ import { ShareSheet } from '../components/SharePlan.jsx'
 import { planId } from '../lib/share.js'
 import { byId } from '../data/exercises.js'
 import { PPL, generatePlan, minutesOf, itemLabel, parseRx } from '../data/plan.js'
-import { DAY_TH, DAY_SHORT, dayIdx } from '../lib/calc.js'
+import { DAY_TH, DAY_SHORT, dayIdx, dateKey } from '../lib/calc.js'
+import { addDays } from '../lib/coach.js'
+import { adjLines } from '../lib/resched.js'
 import { useStore, setPlan, editDay } from '../store.js'
 import { planLimits, whyAvoid } from '../lib/safety.js'
 import SafetyBanner from '../components/SafetyBanner.jsx'
@@ -50,6 +52,7 @@ export default function Plan({ toast }) {
   const [info, setInfo] = useState(null)
   const [share, setShare] = useState(false)
   const today = dayIdx()
+  const adj = useStore((s) => adjLines(s, Array.from({ length: 7 }, (_, i) => addDays(addDays(dateKey(), -today), i)))) // การปรับของสัปดาห์นี้หลังกด "ปวดขา"
 
   const patchItem = (di, k, patch) => editDay(di, (d) => ({ ...d, items: d.items.map((it, n) => (n === k ? { ...it, ...patch } : it)) }))
   const removeItem = (di, k) => editDay(di, (d) => ({ ...d, items: d.items.filter((_, n) => n !== k) }))
@@ -70,6 +73,15 @@ export default function Plan({ toast }) {
       </header>
 
       <SafetyBanner toast={toast} />
+
+      {adj.length > 0 && (
+        <section className="callout warn" role="status">
+          <div><b>ปรับตารางสัปดาห์นี้ตามอาการปวดขา</b>
+            <ul className="sm" style={{ paddingLeft: '1.1rem', margin: '0.25rem 0' }}>{adj.map((l) => <li key={l}>{l}</li>)}</ul>
+            <span className="hint">แม่แบบ 7 วันด้านล่างไม่เปลี่ยน · ยกเลิกได้ที่หน้าวันนี้ ปุ่ม "กลับมาฝึกวันนี้"</span>
+          </div>
+        </section>
+      )}
 
       <div className="two">
         <button className="btn pri" onClick={() => setGen(true)}><Sparkles /> ออกแบบให้</button>

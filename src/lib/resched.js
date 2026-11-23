@@ -115,6 +115,9 @@ export function dayFor(s, date) {
   return { day: base && drop.length ? { ...base, items: base.items.filter((it) => !drop.includes(it.id)) } : base, src, adj }
 }
 
+/** บรรทัดสรุปการปรับของหลายวันรวมเป็นรายการเดียว (เรียงตามวันที่ส่งเข้ามา) */
+export const adjLines = (s, dates) => dates.flatMap((d) => describeAdj(s.plan, d, s.logs?.[d]?.adj))
+
 /** บรรทัดสรุปการปรับของวันหนึ่ง สำหรับแสดงใน UI */
 export function describeAdj(plan, date, adj) {
   const name = DAY_SHORT[idx(date)] + '.'
