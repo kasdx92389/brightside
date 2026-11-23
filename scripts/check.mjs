@@ -847,3 +847,82 @@ console.log('ok — mood, memory, review')
   assert.equal(itemSugarTotal({ id: 'x', q: 1, sg: 9 }, {}), 9); assert.equal(itemSugarTotal({ id: 'gone', q: 1, su: 4 }, {}), 4, 'deployed item with only added sugar')
   console.log('ok — added sugar')
 }
+
+// ── ตารางปรับตัวเมื่อข้ามวันเพราะปวดขา (lib/resched.js) ──
+{
+  const { planSore, legShare, usesLegs, lastLegDate, describeAdj } = await import('../src/lib/resched.js')
+  const { dayIdx, DAY_SHORT } = await import('../src/lib/calc.js')
+  // สัปดาห์ทดสอบ จ.=11-23 พ.=11-25 พฤ.=11-26 ศ.=11-27 ส.=11-28 อา.=11-29
+  const WED = '2026-11-25', THU = '2026-11-26', FRI = '2026-11-27', SAT = '2026-11-28', SUN = '2026-11-29'
+  const legsDone = { [WED]: { finished: true, sets: { 'goblet-squat': [{ done: true }] } } }
+  const gen = (days, goal = 'fit') => generatePlan({ goal, level: 2, days, equip: 'gym' })
+  const eff = (plan, adj, d) => { const a = adj[d], day = plan.days[a?.as ?? dayIdx(new Date(d + 'T00:00:00'))]; return a?.drop?.length ? { ...day, items: day.items.filter((it) => !a.drop.includes(it.id)) } : day }
+
+  // ตัวช่วย: ท่าใช้ขา = กลุ่ม legs/full เท่านั้น (คาร์ดิโอเดิน/วิ่งไม่นับ)
+  assert.ok(usesLegs('goblet-squat') && usesLegs('db-rdl') && usesLegs('kettlebell-swing'))
+  assert.ok(!usesLegs('face-pull') && !usesLegs('treadmill-intervals') && !usesLegs('brisk-walk') && !usesLegs('ไม่มีท่านี้'))
+  assert.equal(legShare(PPL.days[2]), 0.5, 'Legs & Abs = สควอท+ลันจ์ จาก 4 ท่า')
+  assert.equal(legShare(PPL.days[4]), 1 / 6, 'Pull 2 + RDL = 1 จาก 6 ท่า')
+  assert.equal(legShare(PPL.days[0]) + legShare(PPL.days[6]), 0)
+  const lg = { '2026-11-23': { finished: false, sets: { 'goblet-squat': [{ done: true }] } }, '2026-11-24': { finished: true, sets: { 'db-row': [{ done: true }] } }, [WED]: legsDone[WED], [FRI]: { sets: {}, adj: { as: 2 } } }
+  assert.equal(lastLegDate(lg, FRI), WED, 'ต้อง finished และมีเซ็ตขาที่ทำแล้ว')
+  assert.equal(lastLegDate(lg, WED), null, 'ก่อนพุธ: ไม่ finished / ไม่ใช่ท่าขา ไม่นับ')
+  assert.equal(lastLegDate({}, FRI), null)
+
+  // PPL 5 วัน: เล่นขาพุธ → พฤ. ปวดขา → gate = อา. · ศ. ตัด RDL · ส. (เดิมเดิน) = Push 2 ชดเชย
+  const ppl = planSore({ plan: PPL, logs: legsDone, sore: [THU], today: THU })
+  assert.deepEqual(ppl, { [FRI]: { drop: ['db-rdl'] }, [SAT]: { as: 3 } })
+  // 6 วัน PPL×2: ขาที่สองวันเสาร์ก่อน gate → สลับกับวันพักอาทิตย์ · Push ที่ข้ามไปชดเชยวันเสาร์ที่ว่าง
+  assert.deepEqual(planSore({ plan: gen(6), logs: legsDone, sore: [THU], today: THU }), { [SAT]: { as: 3 }, [SUN]: { as: 5 } })
+
+  // Review Focus 1: ไม่เคยเล่นขามาก่อน (ไม่มี L) → gate = S+3 ไม่ throw ไม่มีขาก่อน gate
+  const noLeg = planSore({ plan: PPL, logs: {}, sore: [THU], today: THU })
+  for (let k = 1; k <= 7; k++) { const d = addDays(THU, k); if (d < addDays(THU, 3)) assert.ok(legShare(eff(PPL, noLeg, d)) === 0, `ไม่มีขาก่อน gate ${d}`) }
+  // Review Focus 2: ข้ามวันอาทิตย์ → ขอบเขตข้ามสัปดาห์ · วันพักไม่มีอะไรให้ชดเชย · วันพุธหน้า (=gate) ไม่ถูกตัด
+  assert.deepEqual(planSore({ plan: gen(6), logs: {}, sore: [SUN], today: SUN }), {})
+  // 4 วัน (บน/ล่าง): ข้ามอาทิตย์ → อังคารหน้า (Lower ขาเป็นหลัก ก่อน gate = พุธ) สลับกับพุธ (เดิน)
+  assert.deepEqual(planSore({ plan: gen(4), logs: {}, sore: [SUN], today: SUN }), { '2026-12-01': { as: 2 }, '2026-12-02': { as: 1 } })
+  // Review Focus 3: ปวดสองวันติดกัน → gate เลื่อน · คำนวณซ้ำได้เท่าเดิม · ลบครั้งแรก = เหลือผลของครั้งที่สองล้วนๆ
+  const two = planSore({ plan: PPL, logs: legsDone, sore: [THU, FRI], today: FRI })
+  assert.deepEqual(two, { [FRI]: { drop: ['db-rdl'] }, [SAT]: { as: 3 }, [SUN]: { as: 4, drop: ['db-rdl'] } })
+  assert.deepEqual(planSore({ plan: PPL, logs: legsDone, sore: [THU, FRI], today: FRI }), two, 'idempotent')
+  assert.deepEqual(planSore({ plan: PPL, logs: legsDone, sore: [FRI], today: FRI }), { [SAT]: { as: 4, drop: ['db-rdl'] } }, 'เหลือเฉพาะครั้งที่สอง')
+  // Review Focus 4: วันที่ finished / เริ่มฝึกแล้ว ห้ามถูกทับ (ชดเชยไปวันว่างถัดไป)
+  const doneSat = planSore({ plan: PPL, logs: { ...legsDone, [SAT]: { finished: true, sets: {} } }, sore: [THU], today: THU })
+  assert.deepEqual(doneSat, { [FRI]: { drop: ['db-rdl'] }, [SUN]: { as: 3 } })
+  const startedSat = planSore({ plan: PPL, logs: { ...legsDone, [SAT]: { sets: { 'brisk-walk': [{ done: true }] } } }, sore: [THU], today: THU })
+  assert.deepEqual(startedSat, doneSat)
+
+  // describeAdj: ข้อความสรุปสำหรับ UI
+  assert.deepEqual(describeAdj(PPL, SAT, { as: 3 }), ['ส. Push 2 (ย้ายมาจาก พฤ.)'])
+  assert.deepEqual(describeAdj(PPL, FRI, { drop: ['db-rdl'] }), [`ศ. ตัด ${byId['db-rdl'].th}`])
+  assert.deepEqual(describeAdj(PPL, SUN, { as: 4, drop: ['db-rdl'] }), [`อา. Pull 2 + RDL (ย้ายมาจาก ศ.)`, `อา. ตัด ${byId['db-rdl'].th}`])
+  assert.deepEqual(describeAdj(PPL, SUN, undefined), [])
+  assert.equal(DAY_SHORT[3], 'พฤ')
+
+  // ตัวคงที่ทุกตาราง (PPL + ที่ออกแบบให้ 3–6 วัน × 3 เป้าหมาย): ข้ามปวดขาทุกวันฝึก
+  const plans = [PPL]
+  for (const days of [3, 4, 5, 6]) for (const goal of ['lose', 'fit', 'muscle']) plans.push(gen(days, goal))
+  let cases = 0
+  for (const plan of plans) for (let i = 0; i < 7; i++) {
+    if (plan.days[i].kind !== 'train') continue
+    const S = addDays('2026-11-23', i), gate = addDays(S, 3)
+    const adj = planSore({ plan, logs: {}, sore: [S], today: S })
+    assert.deepEqual(planSore({ plan, logs: {}, sore: [S], today: S }), adj, `idempotent ${plan.name} ${S}`)
+    for (const [d, a] of Object.entries(adj)) {
+      assert.ok(d > S && d <= addDays(S, 7), `adj นอกขอบเขต ${plan.name} ${S} → ${d}`)
+      if (a.as !== undefined) assert.ok(Number.isInteger(a.as) && a.as >= 0 && a.as <= 6, `as เสีย ${plan.name} ${S}`)
+    }
+    let base = 0, now = 0
+    for (let k = 1; k <= 7; k++) {
+      const d = addDays(S, k), b = plan.days[dayIdx(new Date(d + 'T00:00:00'))], e = eff(plan, adj, d)
+      if (b.kind === 'train') base++
+      if (e.kind === 'train' && e.items.length) now++
+      if (d < gate) assert.ok(!e.items.some((it) => usesLegs(it.id)), `ยังมีท่าขาก่อน gate ${plan.name} S=${S} ${d}`)
+    }
+    assert.ok(now <= base + 1, `วันฝึกเพิ่มเกินชดเชย ${plan.name} S=${S}: ${now} > ${base}+1`)
+    cases++
+  }
+  assert.ok(cases >= 40, `cases ${cases}`)
+  console.log(`ok — smart ppl planner (${cases} sore-skip cases)`)
+}
