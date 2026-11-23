@@ -66,6 +66,15 @@ export function dropSauceCredits(log) {
   return { ...log, food }
 }
 
+// adj = การปรับตารางของวันนั้นหลังกด "ปวดขา" (lib/resched.js): as = ใช้เซสชันของวัน 0–6 ในแม่แบบ · drop = รหัสท่าที่ตัดออก · ฟิลด์ที่เสียลบทีละฟิลด์
+function sanitizeAdj(a) {
+  if (!isObj(a)) return null
+  const out = {}
+  if (Number.isInteger(a.as) && a.as >= 0 && a.as <= 6) out.as = a.as
+  if (Array.isArray(a.drop)) { const d = a.drop.filter((x) => typeof x === 'string' && x).slice(0, 20).map((x) => x.slice(0, 60)); if (d.length) out.drop = d }
+  return Object.keys(out).length ? out : null
+}
+
 function sanitizeLog(l) {
   if (!isObj(l)) return null
   const out = { ...l }
@@ -73,6 +82,8 @@ function sanitizeLog(l) {
   if (isObj(l.sets)) for (const [id, arr] of Object.entries(l.sets)) if (Array.isArray(arr)) sets[id] = arr.slice(0, 20).map((x) => (isObj(x) ? x : {}))
   out.sets = sets
   out.finished = l.finished === true; out.skipped = l.skipped === true
+  if (l.why !== undefined && !(l.why === 'sore' && out.skipped)) delete out.why // เหตุผลข้ามวัน: รู้จักเฉพาะ 'sore' และต้องข้ามจริง
+  if (l.adj !== undefined) { const a = sanitizeAdj(l.adj); if (a) out.adj = a; else delete out.adj }
   if (l.food !== undefined) {
     const f = isObj(l.food) ? { ...l.food } : {}
     for (const k of ['kcal', 'protein', 'carb', 'fat', 'water']) if (k in f) f[k] = Math.max(0, Number(f[k]) || 0)

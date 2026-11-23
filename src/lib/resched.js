@@ -86,6 +86,26 @@ export function planSore({ plan, logs, sore, today }) {
   return out
 }
 
+/**
+ * คำนวณการปรับใหม่ทั้งชุดแล้วเขียนลง `logs[date].adj` (ซิงก์รายวันอยู่แล้ว) — ล้าง adj ของวันที่ยังแก้ได้ แล้ววางตามรายการข้าม "ปวดขา" ที่เหลือ
+ * ยกเลิกการข้าม = ลบ why แล้วเรียกซ้ำ · วันที่ผ่านแล้ว/เริ่มฝึกแล้วคงเดิม · log ที่เหลือแต่ค่าว่างหลังล้าง adj ถูกลบ
+ */
+export function applySore(s, today) {
+  if (!s?.plan) return s
+  const logs = { ...s.logs }
+  const from = addDays(today, -HORIZON)
+  const sore = Object.keys(logs).filter((d) => d >= from && logs[d]?.skipped && logs[d]?.why === 'sore').sort()
+  for (const d of Object.keys(logs)) {
+    const l = logs[d]
+    if (!l.adj || d < today || started(l)) continue
+    const { adj, ...rest } = l
+    const blank = !rest.finished && !rest.skipped && !Object.keys(rest.sets || {}).length && Object.keys(rest).every((k) => k === 'sets' || k === 'finished' || k === 'skipped')
+    if (blank) delete logs[d]; else logs[d] = rest
+  }
+  for (const [d, a] of Object.entries(planSore({ plan: s.plan, logs, sore, today }))) logs[d] = { ...(logs[d] || { sets: {}, finished: false }), adj: a }
+  return { ...s, logs }
+}
+
 /** บรรทัดสรุปการปรับของวันหนึ่ง สำหรับแสดงใน UI */
 export function describeAdj(plan, date, adj) {
   const name = DAY_SHORT[idx(date)] + '.'

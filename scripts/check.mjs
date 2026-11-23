@@ -926,3 +926,72 @@ console.log('ok — mood, memory, review')
   assert.ok(cases >= 40, `cases ${cases}`)
   console.log(`ok — smart ppl planner (${cases} sore-skip cases)`)
 }
+
+// ── เก็บผลการปรับตารางลง state: sanitize · applySore · skipDay(ปวดขา)/ย้อน · setPlan · dayFor ──
+{
+  const { applySore } = await import('../src/lib/resched.js')
+  const { skipDay, setPlan, dayFor, replaceState } = await import('../src/store.js')
+  const { dayIdx } = await import('../src/lib/calc.js')
+  let m = '2099-01-01'; while (dayIdx(new Date(m + 'T00:00:00')) !== 0) m = addDays(m, 1) // จันทร์ในอนาคตไกล: ผลไม่ขึ้นกับวันที่จริงของเครื่อง
+  const [, , WED, THU, FRI, SAT, SUN] = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(m, i))
+  const legs = { finished: true, sets: { 'goblet-squat': [{ done: true }] } }
+
+  // sanitize: why/adj ที่เสียถูกล้างทีละฟิลด์ ไม่ทิ้งทั้ง log (Review Focus 5)
+  const san = (l) => sanitizeState({ logs: { [THU]: l } }, '2099-01-01').logs[THU]
+  assert.deepEqual(san({ skipped: true, why: 'sore', adj: { as: 3, drop: ['db-rdl'] } }), { sets: {}, finished: false, skipped: true, why: 'sore', adj: { as: 3, drop: ['db-rdl'] } })
+  assert.ok(!('why' in san({ why: 'sore' })), 'why ต้องมี skipped')
+  assert.ok(!('why' in san({ skipped: true, why: 'tired' })), 'why รู้จักเฉพาะ sore')
+  assert.deepEqual(san({ adj: { as: 3, drop: 'x' } }).adj, { as: 3 })
+  for (const bad of [{ as: 9, drop: 'x' }, { as: 3.5 }, { as: -1 }, 'x', 7, {}]) assert.ok(!('adj' in san({ adj: bad })), `adj เสียต้องหาย: ${JSON.stringify(bad)}`)
+  assert.deepEqual(san({ adj: { drop: ['a', 5, 'x'.repeat(80)] } }).adj.drop, ['a', 'x'.repeat(60)])
+  assert.equal(san({ adj: { drop: Array.from({ length: 30 }, (_, i) => 'e' + i) } }).adj.drop.length, 20)
+
+  // applySore (บริสุทธิ์): เขียน adj ลง logs · ล้างเมื่อยกเลิก · ไม่แตะวันที่ผ่านแล้ว/เริ่มฝึกแล้ว
+  const sore = { sets: {}, finished: false, skipped: true, why: 'sore' }
+  const base = { plan: PPL, createdAt: '2026-01-01', logs: { [WED]: legs, [THU]: sore } }
+  const s1 = applySore(base, THU)
+  assert.deepEqual(s1.logs[FRI].adj, { drop: ['db-rdl'] })
+  assert.deepEqual(s1.logs[SAT], { sets: {}, finished: false, adj: { as: 3 } })
+  assert.equal(s1.logs[THU], base.logs[THU], 'วันข้ามไม่ถูกแตะ')
+  const s0 = applySore({ ...s1, logs: { ...s1.logs, [THU]: { sets: {}, finished: false, skipped: false } } }, THU)
+  assert.deepEqual(Object.keys(s0.logs).sort(), [WED, THU], 'ยกเลิกแล้ว log ว่างที่ถูกสร้างเพราะ adj หายไป')
+  const frozen = { ...s1, logs: { ...s1.logs, [addDays(m, 1)]: { sets: {}, finished: false, adj: { as: 5 } }, [SAT]: { sets: { 'brisk-walk': [{ done: true }] }, finished: false, adj: { as: 3 } } } }
+  const s2 = applySore(frozen, THU)
+  assert.deepEqual(s2.logs[addDays(m, 1)].adj, { as: 5 }, 'วันที่ผ่านแล้วคงเดิม')
+  assert.deepEqual(s2.logs[SAT].adj, { as: 3 }, 'วันที่เริ่มฝึกแล้วคงเดิม')
+  assert.equal(applySore(base, THU).logs[FRI].adj.drop[0], 'db-rdl')
+
+  // store: skipDay(date, skipped, why, today) → applySore ใน update เดียว · ย้อนด้วย skipDay(date, false)
+  const saved = getState()
+  replaceState({ ...saved, plan: PPL, createdAt: '2026-01-01', logs: { [WED]: legs } })
+  skipDay(THU, true, undefined, THU)
+  assert.ok(getState().logs[THU].skipped && !('why' in getState().logs[THU]) && !getState().logs[FRI], 'ข้ามธรรมดา ไม่ปรับตาราง')
+  skipDay(THU, true, 'sore', THU)
+  assert.equal(getState().logs[THU].why, 'sore')
+  assert.deepEqual([getState().logs[FRI].adj, getState().logs[SAT].adj], [{ drop: ['db-rdl'] }, { as: 3 }])
+  skipDay(THU, false, undefined, THU)
+  assert.ok(!('why' in getState().logs[THU]) && !getState().logs[FRI] && !getState().logs[SAT], 'ย้อนกลับ = คืนเท่าเดิม')
+  // Review Focus 3: ข้ามปวดขาสองวันติดกัน แล้วยกเลิกครั้งแรก → เหลือผลของครั้งที่สอง
+  skipDay(THU, true, 'sore', THU); skipDay(FRI, true, 'sore', FRI)
+  assert.deepEqual(getState().logs[SUN].adj, { as: 4, drop: ['db-rdl'] })
+  skipDay(THU, false, undefined, FRI)
+  assert.deepEqual([getState().logs[SAT].adj, getState().logs[SUN], getState().logs[FRI].adj], [{ as: 4, drop: ['db-rdl'] }, undefined, undefined])
+  assert.equal(getState().logs[FRI].why, 'sore')
+  // setPlan คำนวณซ้ำกับแม่แบบใหม่
+  skipDay(FRI, false, undefined, FRI); skipDay(THU, true, 'sore', THU)
+  setPlan(generatePlan({ goal: 'fit', level: 2, days: 6, equip: 'gym' }))
+  assert.deepEqual([getState().logs[FRI], getState().logs[SAT].adj, getState().logs[SUN].adj], [undefined, { as: 3 }, { as: 5 }])
+
+  // dayFor: วันที่ใช้จริง = แม่แบบวัน adj.as (ตัดท่าใน drop) · adj เสีย → ถอยกลับใช้วันตามปฏิทิน (Review Focus 5)
+  replaceState({ ...saved, plan: PPL, createdAt: '2026-01-01', logs: { [WED]: legs } })
+  skipDay(THU, true, 'sore', THU)
+  const st = getState()
+  assert.deepEqual([dayFor(st, SAT).src, dayFor(st, SAT).day.name], [3, 'Push 2'])
+  const fri = dayFor(st, FRI)
+  assert.ok(fri.src === 4 && !fri.day.items.some((i) => i.id === 'db-rdl') && fri.day.items.length === PPL.days[4].items.length - 1)
+  assert.equal(dayFor(st, WED).day, PPL.days[2], 'ไม่มี adj = แม่แบบเดิมตัวเดียวกัน')
+  replaceState({ ...st, logs: { ...st.logs, [SAT]: { sets: {}, finished: false, adj: { as: 9, drop: 'x' } } } })
+  assert.deepEqual([dayFor(getState(), SAT).src, dayFor(getState(), SAT).day], [5, PPL.days[5]])
+  replaceState(saved)
+  console.log('ok — sore-skip adjustments stored, undone and sanitized')
+}

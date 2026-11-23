@@ -6,6 +6,7 @@ import { stamp } from './lib/merge.js'
 import { MOOD_BY, NOTE_MAX } from './lib/mood.js'
 import { fixPlan } from './lib/safety.js'
 import { sanitizeState, dropSauceCredits } from './lib/sanitize.js'
+import { applySore } from './lib/resched.js'
 
 const KEY = 'brightside:v1'
 const EMPTY = { profile: null, plan: null, logs: {}, weights: [], measures: [], favs: [], foodFavs: [], myFoods: [], deloadUntil: null, createdAt: dateKey() }
@@ -60,7 +61,7 @@ export const setBottle = (ml) => update((s) => { const { bottleMl, ...p } = s.pr
 // แทนท่าที่ไม่เหมาะกับอายุ/คัดกรอง/ตั้งครรภ์/BMI ด้วยท่าปลอดภัยในกลุ่มเดียวกัน (ส่วนอื่นของแผนไม่เปลี่ยน)
 export const fixPlanSafety = () => update((s) => (s.plan && s.profile ? { ...s, plan: { ...fixPlan(s.plan, s.profile), source: 'custom' } } : s))
 
-export const setPlan = (plan) => update((s) => ({ ...s, plan: { ...plan, startedAt: dateKey() }, deloadUntil: null }))
+export const setPlan = (plan) => update((s) => applySore({ ...s, plan: { ...plan, startedAt: dateKey() }, deloadUntil: null }, dateKey())) // แม่แบบใหม่ → คำนวณการปรับจากรายการข้ามปวดขาซ้ำ
 
 export const editDay = (i, fn) =>
   update((s) => ({ ...s, plan: { ...s.plan, source: 'custom', days: s.plan.days.map((d, k) => (k === i ? fn(d) : d)) } }))
@@ -104,7 +105,12 @@ export const setMood = (date, patch) => {
 
 export const finishDay = (date, finished = true) =>
   patchLog(date, (log) => ({ ...log, finished, skipped: false, finishedAt: finished ? Date.now() : undefined }))
-export const skipDay =(date, skipped = true) => patchLog(date, (log) => ({ ...log, skipped, finished: false }))
+/** ข้ามวันนี้ · why='sore' = ปวดขา → ตารางวันถัดไปปรับตาม (lib/resched.js) · skipped=false = กลับมาฝึก (ล้างเหตุผลและการปรับที่เกิดจากมัน) · today ให้ทดสอบกำหนดเองได้ */
+export const skipDay = (date, skipped = true, why, today = dateKey()) =>
+  update((s) => {
+    const { why: _old, ...log } = dayLog(s, date)
+    return applySore({ ...s, logs: { ...s.logs, [date]: { ...log, skipped, finished: false, ...(skipped && why === 'sore' ? { why } : {}) } } }, today)
+  })
 export const toggleWarm = (date) => patchLog(date, (log) => ({ ...log, warm: !log.warm }))
 export const patchFood = (date, patch) =>
   patchLog(date, (log) => {
@@ -174,6 +180,15 @@ export const resetAll = () => update(() => ({ ...EMPTY, createdAt: dateKey() }))
 
 // ───── selectors / helpers ─────
 export const setsOf = (log, it) => Array.from({ length: it.sets }, (_, i) => log?.sets?.[it.id]?.[i] || {})
+
+/** วันฝึกที่ใช้จริงของวันที่หนึ่ง: แม่แบบวัน adj.as (ถ้ามี) ตัดท่าใน adj.drop · src = ดัชนีวันในแม่แบบ (ใช้ตอน editDay) · adj เสีย → ใช้วันตามปฏิทิน */
+export function dayFor(s, date) {
+  const adj = s.logs[date]?.adj
+  const src = Number.isInteger(adj?.as) && s.plan?.days[adj.as] ? adj.as : dayIdx(new Date(date + 'T00:00:00'))
+  const base = s.plan?.days[src]
+  const drop = Array.isArray(adj?.drop) ? adj.drop : []
+  return { day: base && drop.length ? { ...base, items: base.items.filter((it) => !drop.includes(it.id)) } : base, src, adj }
+}
 
 /** รายการท่าของวันนั้น (สัปดาห์เบา = ไม่เกิน 2 เซ็ตต่อท่า) */
 export function itemsFor(s, date) {
